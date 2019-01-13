@@ -12,8 +12,12 @@ Il server tiene una cartella per ogni utente, al cui interno si trovano:
     password (rigorosamente in chiaro perché abbiamo a cuore la sicurezza), le
     successive contengono, uno per riga, gli inivit pendenti (ie: da notificare)
 - una cartella per ogni suo documento con lo stesso nome del documento:
-  - `docs_info`: elenco degli utenti che possono modificarlo, uno per riga
-  - `sectionN`: contenuto dell'N-esima sezione (come richiesto dalla consegna)
+    - `docs_info`: file di informazioni sul documento. La prima riga contiene il
+        numero N di sezioni, le successive N il nome di chi sta modificando la
+        corrispondente sezione (vuote se nessuno le sta modificando). Quelle
+        ancora successive l'elenco degli utenti che possono modificare il
+        documento.
+    - `sectionN`: contenuto dell'N-esima sezione (come richiesto dalla consegna)
 
 La gestione della sincronizzazione (ie: garantire che ogni sezione sia
 modificata da al più un utente alla volta) non avviene salvando informazioni su

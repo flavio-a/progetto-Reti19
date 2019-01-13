@@ -11,7 +11,7 @@ case $1 in
 		find server -name '*.class' -delete
 		;;
 	compile)
-		javac server/TURINGServer.java
+		javac -Xlint:unchecked server/TURINGServer.java
 		;;
 	runserver)
 		$0 compile
