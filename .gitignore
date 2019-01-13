@@ -1,7 +1,7 @@
-# Compiled class file
+## Compiled class file
 *.class
 
-# Package Files #
+## Package Files
 *.jar
 *.war
 *.nar
@@ -9,6 +9,16 @@
 *.zip
 *.tar.gz
 *.rar
+
+## NetBeans
+**/nbproject/private/
+**/nbproject/Makefile-*.mk
+**/nbproject/Package-*.bash
+build/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
 
 ## Core latex/pdflatex auxiliary files:
 *.aux

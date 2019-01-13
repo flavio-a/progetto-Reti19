@@ -1,0 +1,14 @@
+Il server tiene una cartella per ogni utente, al cui interno inserisce:
+- un file con l'elenco dei documenti che può modificare
+- un file con l'elenco degli inviti pendenti (ie: da notificare)
+- un file con la password (salvata rigorosamente in chiaro perché abbiamo a
+  cuore la sicurezza)
+- una cartella per ogni suo documento, che a sua volta contiene:
+  - un file per ogni sezione (come richiesto dalla consegna)
+  - un file con l'elenco degli utenti che possono modificarlo
+
+La gestione della sincronizzazione (ie: garantire che ogni sezione sia
+modificata da al più un utente alla volta) non avviene salvando informazioni su
+file ma solo nella memoria del programma. Questo significa che in caso di crash
+del server tutte le sezioni aperte vengono automaticamente chiuse senza salvare
+nessuna modifica.
