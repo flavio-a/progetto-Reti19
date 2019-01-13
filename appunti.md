@@ -12,3 +12,5 @@ modificata da al più un utente alla volta) non avviene salvando informazioni su
 file ma solo nella memoria del programma. Questo significa che in caso di crash
 del server tutte le sezioni aperte vengono automaticamente chiuse senza salvare
 nessuna modifica.
+
+# Registrazione tramite RMI
