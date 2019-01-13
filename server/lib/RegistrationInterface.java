@@ -10,9 +10,11 @@ public interface RegistrationInterface extends Remote {
 	 * @param  usr  the name of the new user to register
 	 * @param  pwd  the password of the new user
 	 * @throws RemoteException specified by RMI
+	 * @throws InternalServerException if an error occurrs on the server during
+	 *                                 elaboration
 	 * @throws UsernameAlreadyInUseException if the username "usr" is already
 	 *                                       in use
 	 */
 	public void register(String usr, String pwd)
-		throws RemoteException, UsernameAlreadyInUseException;
+		throws RemoteException, InternalServerException, UsernameAlreadyInUseException;
 }

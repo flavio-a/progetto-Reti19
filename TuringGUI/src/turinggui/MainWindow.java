@@ -82,8 +82,7 @@ public class MainWindow extends javax.swing.JFrame {
             // TODO: ask all datas via popups or something
             if (registrationServer == null) {
                 Registry r = LocateRegistry.getRegistry(12345);
-                Remote remoteObject = r.lookup("ASK ME WITH POPUP");
-                registrationServer = (RegistrationInterface)remoteObject;
+                registrationServer = (RegistrationInterface)r.lookup("TURING-REGISTRATION");
             }
             String usr = "usr";
             registrationServer.register(usr, "pwd");
@@ -96,6 +95,8 @@ public class MainWindow extends javax.swing.JFrame {
             UserLog("Remote error during registration: " + e.getMessage());
         }
         catch (UsernameAlreadyInUseException e) {
+            UserLog(e.getMessage());
+        } catch (InternalServerException e) {
             UserLog(e.getMessage());
         }
     }//GEN-LAST:event_registerButtonActionPerformed
@@ -129,6 +130,7 @@ public class MainWindow extends javax.swing.JFrame {
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 new MainWindow().setVisible(true);
             }
