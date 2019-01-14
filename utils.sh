@@ -3,12 +3,15 @@
 DBFOLDER="TURING_db/"
 
 case $1 in
-	clean)
+	cleandb)
 		rm -rf $DBFOLDER/*
 		;;
-	cleanall)
-		$0 clean
+	cleanbuild)
 		find server -name '*.class' -delete
+		;;
+	cleanall)
+		$0 cleandb
+		$0 cleanbuild
 		;;
 	compile)
 		javac -Xlint:unchecked server/TURINGServer.java

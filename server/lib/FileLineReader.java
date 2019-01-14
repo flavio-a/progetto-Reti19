@@ -41,6 +41,7 @@ public class FileLineReader implements Iterable<String>, Closeable, AutoCloseabl
 		int idx;
 		while ((idx = buffer_string.indexOf(linesep)) == -1
 				&& filechannel.read(buffer) != -1) {
+			buffer.flip();
 			buffer_string += utf8.decode(buffer).toString();
 			buffer.clear();
 		}
@@ -88,6 +89,23 @@ public class FileLineReader implements Iterable<String>, Closeable, AutoCloseabl
 	@Override
 	public void close() throws IOException {
 		filechannel.close();
+	}
+
+	// Testing main
+   // @SuppressWarnings("unchecked")
+	public static void main(String[] args) {
+		Path f = Paths.get(args[0]);
+		try (
+			FileLineReader test = new FileLineReader(f);
+		) {
+			Iterator<String> compare = Files.lines(f).iterator();
+			for (String line : test) {
+				System.out.println(line);
+			}
+		}
+		catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 }
 

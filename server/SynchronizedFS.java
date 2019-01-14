@@ -19,6 +19,8 @@ import server.lib.*;
  * Actual implementation uses a single read-write lock for all files in the db.
  * Of course this may be enhanced (not so much because the server multiplexes
  * inputs so there shouldn't be too many concurrency).
+ *
+ * TODO: change readers with nio.
  */
 public class SynchronizedFS {
 	public static final String user_info_file = "user_info";
@@ -72,9 +74,9 @@ public class SynchronizedFS {
 	private boolean searchRow(Path f, String text, int skip) throws IOException {
 		final String trim_text = text.trim();
 		try (
-			BufferedReader reader = Files.newBufferedReader(f);
+			FileLineReader reader = new FileLineReader(f);
 		) {
-			return reader.lines()
+			return StreamSupport.stream(reader.spliterator(), false)
 						.skip(skip)
 						.anyMatch(line -> trim_text.equals(line.trim()));
 		}
@@ -89,8 +91,9 @@ public class SynchronizedFS {
 	 * @param limit maximum number of lines on which operates. If both skip and
 	 *              limit are given, operates on lines [skip, skip + limit].
 	 *              Negative values means no limit.
+	 *
+	 * TODO: replace writer with nio
 	 */
-	@SuppressWarnings("unchecked")
 	public void deleteRows(Path f, String text, int skip, int limit) throws IOException {
 		final String trim_text = text.trim();
 		// Implementation: the file is read line by line and lines not matching
@@ -99,16 +102,13 @@ public class SynchronizedFS {
 		Path tmp_file = f.getParent().resolve(f.getFileName().toString() + "_tmp");
 		try (
 			BufferedWriter writer = Files.newBufferedWriter(tmp_file);
-			BufferedReader reader = Files.newBufferedReader(f);
+			FileLineReader reader = new FileLineReader(f);
 		) {
 			int i = 0;
-			for (String line : (Iterable<String>)reader.lines()) {
-				if (i >= skip
-					&& (limit < 0 || i < skip + limit)
-					&& trim_text.equals(line.trim())) {
-					// Nothing
-				}
-				else {
+			for (String line : reader) {
+				if (i < skip
+					|| (limit >= 0 && i >= skip + limit)
+					|| !trim_text.equals(line.trim())) {
 					writer.write(line + System.getProperty("line.separator"));
 				}
 				++i;
@@ -166,7 +166,7 @@ public class SynchronizedFS {
 	public boolean checkUser(String usr, String pwd) throws IOException {
 		rwlock.readLock().lock();
 		try (
-			FileLineReader reader = new FileLineReader(root.resolve(usr));
+			FileLineReader reader = new FileLineReader(root.resolve(usr).resolve(user_info_file));
 		) {
 			return pwd.trim().equals(reader.readLine().trim());
 		}
