@@ -26,12 +26,12 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 
 	// ------------------------ NON STATIC ----------------------------------
 	// private final String db_path;
-	private final SynchronizedFS fs_interface;
+	private final DBInterface fs_interface;
 
 	public TURINGServer(int rmi_registry_port, String db_path_set) throws RemoteException, IOException {
 		super();
 		bindRMIRegistry(rmi_registry_port);
-		fs_interface = new SynchronizedFS(db_path_set);
+		fs_interface = new DBInterface(db_path_set);
 	}
 
 	public TURINGServer(int rmi_registry_port) throws RemoteException, IOException {
