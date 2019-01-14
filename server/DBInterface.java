@@ -40,9 +40,9 @@ public class DBInterface {
 	private final ReadWriteLock fs_rwlock;
 	private final ReadWriteLock edit_rwlock;
 	// Given a username, returns if they're editing
-	private final Map<String, Boolean> isEditing;
+	private final Map<String, Section> isEditing;
 	// Given a section, returns if it is being edited
-	private final Map<String, Boolean[]> beingEdited;
+	private final Map<Section, Boolean> beingEdited;
 
 	/**
 	 * Creates a new instance of DBInterface. If the passed root directory
@@ -62,15 +62,12 @@ public class DBInterface {
 		fs_rwlock = new ReentrantReadWriteLock();
 		edit_rwlock = new ReentrantReadWriteLock();
 		// Both are lazily filled, and begin empty (no one's editing anything)
-		isEditing = new HashMap<String, Boolean>();
-		beingEdited = new HashMap<String, Boolean[]>();
+		isEditing = new HashMap<String, Section>();
+		beingEdited = new HashMap<Section, Boolean>();
 
 	}
 
-	//
-
-	// ======================== FILE ROW OPERATIONS ===========================
-
+	// =========================== FILE OPERATIONS ===========================
 	/**
 	 * Add a row to a file.
 	 *
@@ -80,7 +77,7 @@ public class DBInterface {
 	 */
 	private void addRow(Path f, String text) throws IOException {
 		byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
-		Files.write(root.resolve(f), bytes, StandardOpenOption.APPEND);
+		Files.write(f, bytes, StandardOpenOption.APPEND);
 	}
 
 	/**
@@ -211,6 +208,7 @@ public class DBInterface {
 			// A user has permission over its own documents
 			byte[] bytes = usr.getBytes(utf8);
 			Files.write(doc_path.resolve(editors_file), bytes);
+			addRow(usr_path.resolve(permissions_file), name);
 			for (Integer i = 0; i < n; ++i) {
 				Files.createFile(doc_path.resolve(section_file_prefix + i.toString()));
 			}
@@ -229,13 +227,45 @@ public class DBInterface {
 	/**
 	 * Get the number of sections of the passed document.
 	 *
-	 * @param name the name of the document (including owner: "owner/doc_name")
-	 * @return the number of sections of that document
+	 * TODO: synchronization? It may happen that this function is called during
+	 * the creation of the document. In this case there may be problems? Not
+	 * fatal problems, the worst is an internal server error, try again in a
+	 * few moment for the user.
+	 * Instead acquiring the fs_rwlock.readLock() may cause deadlock because
+	 * this function is called within an edit_rwlock-locked section.
 	 *
-	 * TODO: IMPLEMENT THIS
+	 * @param name the path to the doc
+	 * @return the number of sections of that document
 	 */
-	public int sectionNumber(String name) {
-		throw new UnsupportedOperationException();
+	public int sectionNumber(Path doc) throws IOException {
+		try (
+			DirectoryStream<Path> doc_files = Files.newDirectoryStream(
+							doc, section_file_prefix + "*");
+		) {
+			int preflen = section_file_prefix.length();
+			return StreamSupport.stream(doc_files.spliterator(), false)
+					.mapToInt(p -> Integer.parseInt(
+							p.getFileName().toString().substring(preflen)
+						))
+					.max().getAsInt();
+		}
+	}
+
+	/**
+	 * Get the size of the section file being modified by this user.
+	 *
+	 * @param usr the user
+	 * @return the size of the section this user is modifying, or -1 if they
+	 *         aren't modifying anything
+	 */
+	public long modifiedSectionSize(String usr) throws IOException {
+		Section sec = isEditing.getOrDefault(usr, null);
+		if (sec == null) {
+			return -1;
+		}
+		else {
+			return Files.size(root.resolve(sec.getFullPath()));
+		}
 	}
 
 	/**
@@ -245,8 +275,7 @@ public class DBInterface {
 	 * something else at the same time.
 	 *
 	 * @param usr the username of the user requesting the edit
-	 * @param name the name of the document (including owner: "owner/doc_name")
-	 * @param n number of section to edit
+	 * @param sec section to edit
 	 * @return a FileChannel to the required section
 	 * @throws NoPermissionException if the user doesn't have permission
 	 * @throws NoSuchSectionException if the given section doesn't exists
@@ -254,51 +283,89 @@ public class DBInterface {
 	 * @throws UserBusyException if the user is editing something else
 	 * @throws IOException if document doesn't exist or if an IO error occurs
 	 */
-	public FileChannel editSection(String usr, String name, int n) throws IOException, NoPermissionException, NoSuchSectionException, SectionBusyException, UserBusyException {
+	public FileChannel editSection(String usr, Section sec) throws IOException, NoPermissionException, NoSuchSectionException, SectionBusyException, UserBusyException {
 		// Those are here because sec_path is needed after
-		Path doc_path = root.resolve(name);
-		Path sec_path = doc_path.resolve(section_file_prefix + Integer.toString(n));
+		Path doc_path = root.resolve(sec.getDocumentPath());
+		Path sec_path = doc_path.resolve(sec.getSectionPath());
 		try {
 			fs_rwlock.readLock().lock();
 			// Check permissions
 			if (!searchRow(doc_path.resolve(editors_file), usr, 0)) {
-				throw new NoPermissionException(usr, name);
+				throw new NoPermissionException(usr, sec.getQualifiedDocumentName());
 			}
 			// Check existence
 			if (!sec_path.toFile().exists()) {
-				throw new NoSuchSectionException(n);
+				throw new NoSuchSectionException(sec.getN());
 			}
 		}
 		finally {
 			fs_rwlock.readLock().unlock();
 		}
-		// Must be the writeLock because it can't release the lock between check
-		// and granting, otherwise someone else can acquire the section between
-		// the two locks and the user get to wait until they end their edit.
 		try {
 			edit_rwlock.writeLock().lock();
 			// Check section free
-			Boolean[] doc_edits = beingEdited.get(name);
-			if (doc_edits != null && doc_edits[n]) {
-				throw new SectionBusyException(n);
+			if (!beingEdited.getOrDefault(sec, false)) {
+				throw new SectionBusyException(sec.getN());
 			}
 			// Check user free
-			if (isEditing.getOrDefault(usr, false)) {
+			if (isEditing.getOrDefault(usr, null) == null) {
 				throw new UserBusyException(usr);
 			}
 			// Give edit to the user
-			isEditing.put(usr, true);
-			if (doc_edits == null) {
-				int sec_num = sectionNumber(name);
-				doc_edits = new Boolean[sec_num];
-				for (int i = 0; i < sec_num; ++i) {
-					doc_edits[i] = false;
-				}
-			}
-			doc_edits[n] = true;
-			beingEdited.put(name, doc_edits);
-
+			isEditing.put(usr, sec);
+			beingEdited.put(sec, true);
 			return FileChannel.open(sec_path, StandardOpenOption.READ);
+		}
+		finally {
+			edit_rwlock.writeLock().unlock();
+		}
+	}
+
+	/**
+	 * End the edit of a section. If the user isn't editing anything, throws
+	 * NoSuchSectionException.
+	 *
+	 * @param usr the username of the user ending the edit
+	 * @param newContent a Channel to the new contet of the
+	 * @throws UserFreeException if the user isn't editing anything
+	 * @throws IOException if document doesn't exist or if an IO error occurs
+	 */
+	public void finishEditSection(String usr, ReadableByteChannel newContent) throws IOException, UserFreeException {
+		Section sec;
+		try {
+			edit_rwlock.readLock().lock();
+			sec = isEditing.getOrDefault(usr, null);
+			if (sec == null) {
+				throw new UserFreeException(usr);
+			}
+		}
+		finally {
+			edit_rwlock.readLock().unlock();
+		}
+		// Write on the file the whole Channel. No need to synchronize
+		// because noone else can modify this section at this time.
+		ByteBuffer sizebuff = ByteBuffer.allocate(Long.SIZE / Byte.SIZE);
+		sizebuff.clear();
+		while (sizebuff.remaining() > 0) {
+			newContent.read(sizebuff);
+		}
+		sizebuff.flip();
+		long filesize = sizebuff.getLong();
+		try (
+			FileChannel outFile = FileChannel.open(root.resolve(sec.getFullPath()), StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+		) {
+			long pos = 0;
+			while (filesize > 0) {
+				long count -= fileChannel.transferFrom(newContent, pos, filesize);
+				pos += count;
+				filesize -= count;
+			}
+		}
+		// Release edit lock on the section
+		try {
+			edit_rwlock.writeLock().lock();
+			isEditing.put(usr, null);
+			beingEdited.put(sec, false);
 		}
 		finally {
 			edit_rwlock.writeLock().unlock();

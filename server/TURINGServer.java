@@ -8,7 +8,7 @@ import java.io.IOException;
 import server.lib.*;
 
 public class TURINGServer implements RegistrationInterface, Runnable {
-	// -------------------------- STATIC ------------------------------------
+	// ================================ STATIC ================================
 	public static final String rmi_registry_name = "TURING-REGISTRATION";
 	private static final int rmi_interaction_port = 24775;
 	private static final String default_db_path = "./TURING_db/";
@@ -17,21 +17,26 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		try {
 			TURINGServer server = new TURINGServer(Integer.parseInt(args[0]));
 			System.out.println("TURING server created");
-			server.run();
+			if ("test".equals(args[1])) {
+				server.testLocal();
+			}
+			else {
+				server.run();
+			}
 		}
 		catch (IOException e) { // Catches also RemoteException
 			System.out.println("Error creating server: " + e.getMessage());
 		}
 	}
 
-	// ------------------------ NON STATIC ----------------------------------
+	// ============================== NON STATIC ==============================
 	// private final String db_path;
-	private final DBInterface fs_interface;
+	private final DBInterface db_interface;
 
 	public TURINGServer(int rmi_registry_port, String db_path_set) throws RemoteException, IOException {
 		super();
 		bindRMIRegistry(rmi_registry_port);
-		fs_interface = new DBInterface(db_path_set);
+		db_interface = new DBInterface(db_path_set);
 	}
 
 	public TURINGServer(int rmi_registry_port) throws RemoteException, IOException {
@@ -72,7 +77,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			catch (Exception e) {
 
 			}
-			// System.out.println("Server running");
+			System.out.println("Server running");
 		}
 	}
 
@@ -81,7 +86,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	public void register(String usr, String pwd) throws RemoteException, InternalServerException, UsernameAlreadyInUseException {
 		log("Request: registration of username \"" + usr + "\"");
 		try {
-			if (fs_interface.createUser(usr, pwd)) {
+			if (db_interface.createUser(usr, pwd)) {
 				log("User created succesfully");
 			}
 			else {
@@ -92,6 +97,32 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		catch (java.io.IOException e) {
 			log("IOException: " + e.getMessage());
 			throw new InternalServerException("Try again in a few seconds.");
+		}
+	}
+
+	// =============================== TESTING ===============================
+	public void testLocal() throws IOException {
+		log("======== TESTING =========");
+		log("After each operation logs the operation an may ask for confirmation");
+		String usr1 = "cusu", pwd = "password", doc1 = "prova";
+		int sez1 = 5;
+		try {
+			register(usr1, pwd);
+			log("Created user " + usr1 + ": worked?");
+			System.console().readLine();
+			if (db_interface.checkUser(usr1, pwd)) {
+				log("User " + usr1 + " logged in");
+			}
+			else {
+				log("User " + usr1 + " not logged in");
+			}
+			db_interface.createDocument(usr1, doc1, sez1);
+			log("Created document " + doc1 + " of " + usr1 + ": worked?");
+			System.console().readLine();
+		}
+		catch (Exception e) {
+			log("Exception during testing:" + e.getMessage());
+			e.printStackTrace();
 		}
 	}
 }

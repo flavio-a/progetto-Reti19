@@ -20,4 +20,9 @@ case $1 in
 		$0 compile
 		java server.TURINGServer 12345
 		;;
+	runtest)
+		$0 cleandb
+		$0 compile
+		java server.TURINGServer 12345 "test"
+		;;
 esac

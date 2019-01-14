@@ -39,25 +39,33 @@ avviene solo durante la registrazione; la cancellazione invece non avviene mai.
 Per il login il server controlla l'esistenza del file `DB_ROOT/usr/user_info` e
 a correttezza della password (che deve essere uguale alla prima riga del file).
 
+## Protocolli di comunicazione
+### Trasferimento sezioni
+Per trasferire una sezione (ie: un file) il protocollo è:
+- Inviare un `long` (8 byte) con la dimensione del file in byte
+- Inviare tutti i byte del file
+
 # TODO
 Primo tick fatto, secondo tick testato
 - [ ] Operazioni locali da implementare:
-  - [x][ ] Creare un documento
-  - [ ][ ] Modificare una sezione
-  - [ ][ ] Finire la modifica
-  - [ ][ ] Invitare
-  - [ ][ ] Mostrare una sezione
-  - [ ][ ] Mostrare un documento
-  - [ ][ ] Listare i documenti editabili
+  - [x] [x] Registrazione
+  - [x] [x] login
+  - [x] [x] Creare un documento
+  - [x] [ ] Iniziare la modifica di una sezione
+  - [x] [ ] Finire la modifica
+  - [ ] [ ] Invitare
+  - [ ] [ ] Mostrare una sezione
+  - [ ] [ ] Mostrare un documento
+  - [ ] [ ] Listare i documenti editabili
 - [ ] Esportare servizi in rete:
-  - [x][x] Registrazione
-  - [ ][ ] Login
-  - [ ][ ] Operazioni di sopra:
-    - [ ][ ] Creare un documento
-    - [ ][ ] Modificare una sezione
-    - [ ][ ] Finire la modifica
-    - [ ][ ] Invitare
-    - [ ][ ] Mostrare una sezione
-    - [ ][ ] Mostrare un documento
-    - [ ][ ] Listare i documenti editabili
-- [ ][ ] Chat
+  - [x] [x] Registrazione
+  - [ ] [ ] Login
+  - [ ] [ ] Operazioni di sopra:
+    - [ ] [ ] Creare un documento
+    - [ ] [ ] Modificare una sezione
+    - [ ] [ ] Finire la modifica
+    - [ ] [ ] Invitare
+    - [ ] [ ] Mostrare una sezione
+    - [ ] [ ] Mostrare un documento
+    - [ ] [ ] Listare i documenti editabili
+- [ ] [ ] Chat
