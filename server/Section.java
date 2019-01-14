@@ -1,6 +1,7 @@
 package server;
 
 import java.nio.*;
+import java.nio.file.*;
 import server.*;
 
 /**
@@ -44,8 +45,8 @@ public final class Section {
             return false;
         }
 		Section s = (Section)obj;
-		return owner.equals(obj.owner)
-				&& doc_name.equals(obj.doc_name)
-				&& n == obj.n;
+		return owner.equals(s.owner)
+				&& doc_name.equals(s.doc_name)
+				&& n == s.n;
 	}
 }

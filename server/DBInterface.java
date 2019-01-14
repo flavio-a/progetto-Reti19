@@ -304,11 +304,11 @@ public class DBInterface {
 		try {
 			edit_rwlock.writeLock().lock();
 			// Check section free
-			if (!beingEdited.getOrDefault(sec, false)) {
+			if (beingEdited.getOrDefault(sec, false)) {
 				throw new SectionBusyException(sec.getN());
 			}
 			// Check user free
-			if (isEditing.getOrDefault(usr, null) == null) {
+			if (isEditing.getOrDefault(usr, null) != null) {
 				throw new UserBusyException(usr);
 			}
 			// Give edit to the user
@@ -356,7 +356,7 @@ public class DBInterface {
 		) {
 			long pos = 0;
 			while (filesize > 0) {
-				long count -= fileChannel.transferFrom(newContent, pos, filesize);
+				long count = outFile.transferFrom(newContent, pos, filesize);
 				pos += count;
 				filesize -= count;
 			}

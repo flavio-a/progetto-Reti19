@@ -6,6 +6,11 @@ import java.rmi.server.*;
 import java.rmi.registry.*;
 import java.io.IOException;
 import server.lib.*;
+// DEBUG
+import java.nio.*;
+import java.nio.file.*;
+import java.nio.channels.*;
+import java.nio.charset.*;
 
 public class TURINGServer implements RegistrationInterface, Runnable {
 	// ================================ STATIC ================================
@@ -105,7 +110,8 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		log("======== TESTING =========");
 		log("After each operation logs the operation an may ask for confirmation");
 		String usr1 = "cusu", pwd = "password", doc1 = "prova";
-		int sez1 = 5;
+		int nsez1 = 5, sez1 = 2;
+		String usr2 = "mano";
 		try {
 			register(usr1, pwd);
 			log("Created user " + usr1 + ": worked?");
@@ -116,9 +122,26 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			else {
 				log("User " + usr1 + " not logged in");
 			}
-			db_interface.createDocument(usr1, doc1, sez1);
+			db_interface.createDocument(usr1, doc1, nsez1);
 			log("Created document " + doc1 + " of " + usr1 + ": worked?");
 			System.console().readLine();
+
+			Section sec = new Section(usr1, doc1, sez1);
+			FileChannel prova_sez = db_interface.editSection(usr1, sec);
+			log(usr1 + " is editing section 2 of " + doc1);
+			log("Content");
+			byte[] buffer = new byte[256 * 1024];
+			ByteBuffer byteBuffer = ByteBuffer.wrap(buffer);
+			try {
+			    for (int length = 0; (length = prova_sez.read(byteBuffer)) != -1;) {
+			        System.out.write(buffer, 0, length);
+			        byteBuffer.clear();
+				}
+			}
+			finally {
+				prova_sez.close();
+			}
+
 		}
 		catch (Exception e) {
 			log("Exception during testing:" + e.getMessage());
