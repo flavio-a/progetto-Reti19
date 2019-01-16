@@ -51,8 +51,8 @@ Primo tick fatto, secondo tick testato
   - [x] [x] Registrazione
   - [x] [x] login
   - [x] [x] Creare un documento
-  - [x] [ ] Iniziare la modifica di una sezione
-  - [x] [ ] Finire la modifica
+  - [x] [x] Iniziare la modifica di una sezione
+  - [x] [x] Finire la modifica
   - [ ] [ ] Invitare
   - [ ] [ ] Mostrare una sezione
   - [ ] [ ] Mostrare un documento

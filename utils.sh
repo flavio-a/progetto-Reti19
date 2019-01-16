@@ -23,6 +23,8 @@ case $1 in
 	runtest)
 		$0 cleandb
 		$0 compile
-		java server.TURINGServer 12345 "test"
+		if [ $? == 0 ]; then
+			java server.TURINGServer 12345 "test"
+		fi
 		;;
 esac

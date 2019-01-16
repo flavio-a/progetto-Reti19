@@ -109,6 +109,15 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	public void testLocal() throws IOException {
 		log("======== TESTING =========");
 		log("After each operation logs the operation an may ask for confirmation");
+
+		try {
+			db_interface.testRowsOps();
+			log("Row operations tested succesfully");
+		}
+		catch (RuntimeException e) {
+			log("Error testing row operations: " + e.getMessage());
+		}
+
 		String usr1 = "cusu", pwd = "password", doc1 = "prova";
 		int nsez1 = 5, sez1 = 2;
 		String usr2 = "mano";
@@ -127,21 +136,53 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			System.console().readLine();
 
 			Section sec = new Section(usr1, doc1, sez1);
-			FileChannel prova_sez = db_interface.editSection(usr1, sec);
-			log(usr1 + " is editing section 2 of " + doc1);
-			log("Content");
-			byte[] buffer = new byte[256 * 1024];
-			ByteBuffer byteBuffer = ByteBuffer.wrap(buffer);
-			try {
+			try (
+				FileChannel prova_sez = db_interface.editSection(usr1, sec);
+			) {
+				log(usr1 + " is editing " + sec.getDebugRepr());
+				log("================ content ================");
+				byte[] buffer = new byte[1024];
+				ByteBuffer byteBuffer = ByteBuffer.wrap(buffer);
 			    for (int length = 0; (length = prova_sez.read(byteBuffer)) != -1;) {
 			        System.out.write(buffer, 0, length);
 			        byteBuffer.clear();
 				}
 			}
-			finally {
-				prova_sez.close();
+			log("================ end content ================");
+
+			register(usr2, pwd);
+			log("Created user " + usr2 + ": worked?");
+			System.console().readLine();
+
+			try (
+				FileChannel prova_sez = db_interface.editSection(usr2, sec);
+			){
+				log(usr2 + " got editing of " + sec.getDebugRepr());
+			}
+			catch (SectionBusyException e) {
+				log(usr2 + " can't modify " + sec.getDebugRepr() + ": busy");
+			}
+			catch (NoPermissionException e) {
+				log(usr2 + " can't modify " + sec.getDebugRepr() + ": no permission");
 			}
 
+			try (
+				FileChannel newContent = FileChannel.open(Paths.get("server/TURINGServer.java"), StandardOpenOption.READ);
+			) {
+				db_interface.finishEditSection(usr1, newContent);
+				log("Edit finished succesfully");
+			}
+			try (
+				FileChannel prova_sez = db_interface.editSection(usr2, sec);
+			) {
+				log(usr2 + " got editing of " + sec.getDebugRepr());
+			}
+			catch (SectionBusyException e) {
+				log(usr2 + " can't modify " + sec.getDebugRepr() + ": busy");
+			}
+			catch (NoPermissionException e) {
+				log(usr2 + " can't modify " + sec.getDebugRepr() + ": no permission");
+			}
 		}
 		catch (Exception e) {
 			log("Exception during testing:" + e.getMessage());

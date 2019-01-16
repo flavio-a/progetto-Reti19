@@ -76,7 +76,7 @@ public class DBInterface {
 	 *             in this string
 	 */
 	private void addRow(Path f, String text) throws IOException {
-		byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+		byte[] bytes = (text + linesep).getBytes(StandardCharsets.UTF_8);
 		Files.write(f, bytes, StandardOpenOption.APPEND);
 	}
 
@@ -109,7 +109,7 @@ public class DBInterface {
 	 *
 	 * TODO: replace writer with nio
 	 */
-	public void deleteRows(Path f, String text, int skip) throws IOException {
+	private void deleteRows(Path f, String text, int skip) throws IOException {
 		final String trim_text = text.trim();
 		// Implementation: the file is read line by line and lines not matching
 		// are written to a temporary file. At the end, the temporary file is
@@ -132,6 +132,28 @@ public class DBInterface {
 			throw e;
 		}
 		Files.move(tmp_file, f, StandardCopyOption.REPLACE_EXISTING);
+	}
+
+	public void testRowsOps() {
+		String randomline = "oibruaiovbrowa", randomline2 = "giancarlo";
+		Path totf = root.resolve(randomline);
+		try {
+			totf = Files.createFile(totf);
+			addRow(totf, randomline);
+			addRow(totf, randomline2);
+			if (!searchRow(totf, randomline, 0)) {
+				throw new RuntimeException("First line written not found!");
+			}
+			if (!searchRow(totf, randomline2, 1)) {
+				throw new RuntimeException("Second line written not found!");
+			}
+			if (searchRow(totf, randomline, 1)) {
+				throw new RuntimeException("Line found, should have skipped!");
+			}
+		}
+		catch (IOException e) {
+			throw new RuntimeException("IOException :c");
+		}
 	}
 
 	// ============================== USERS ==================================
@@ -206,7 +228,7 @@ public class DBInterface {
 			Files.createDirectory(doc_path);
 
 			// A user has permission over its own documents
-			byte[] bytes = usr.getBytes(utf8);
+			byte[] bytes = (usr + linesep).getBytes(utf8);
 			Files.write(doc_path.resolve(editors_file), bytes);
 			addRow(usr_path.resolve(permissions_file), name);
 			for (Integer i = 0; i < n; ++i) {

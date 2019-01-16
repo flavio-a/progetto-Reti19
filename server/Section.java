@@ -49,4 +49,8 @@ public final class Section {
 				&& doc_name.equals(s.doc_name)
 				&& n == s.n;
 	}
+
+	public String getDebugRepr() {
+		return owner + "/" + doc_name + "." + Integer.toString(n);
+	}
 }
