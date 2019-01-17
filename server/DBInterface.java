@@ -21,15 +21,9 @@ import server.lib.*;
  * system of the server.
  *
  * Actual implementation uses a single read-write lock for all files in the db.
- * Of course this may be enhanced (not so much because the server multiplexes
- * inputs so there shouldn't be too many concurrency).
- *
- * TODO: change readers with nio.
+ * Of course this may be enhanced.
  */
 public class DBInterface {
-	public static final String linesep = System.getProperty("line.separator");
-	public static final Charset utf8 = StandardCharsets.UTF_8;
-
 	public static final String pwd_file = "pwd";
 	public static final String invitations_file = "pending_invitations";
 	public static final String permissions_file = "editable_docs";
@@ -65,95 +59,6 @@ public class DBInterface {
 		isEditing = new HashMap<String, Section>();
 		beingEdited = new HashMap<Section, Boolean>();
 
-	}
-
-	// =========================== FILE OPERATIONS ===========================
-	/**
-	 * Add a row to a file.
-	 *
-	 * @param f path to the file relative to root
-	 * @param text the line of text to add. There's no check against newlines
-	 *             in this string
-	 */
-	private void addRow(Path f, String text) throws IOException {
-		byte[] bytes = (text + linesep).getBytes(StandardCharsets.UTF_8);
-		Files.write(f, bytes, StandardOpenOption.APPEND);
-	}
-
-	/**
-	 * Look for a row in a file.
-	 *
-	 * @param f path to the file relative to root
-	 * @param text the line of text to look for. A line of the file matches text
-	 *             excluding leading and trailing blanks (ie: both are trimmed)
-	 * @param skip number of lines at the begining of the file to skip
-	 * @return true iff the row is found
-	 */
-	private boolean searchRow(Path f, String text, int skip) throws IOException {
-		final String trim_text = text.trim();
-		try (
-			FileLineReader reader = new FileLineReader(f);
-		) {
-			return StreamSupport.stream(reader.spliterator(), false)
-						.skip(skip)
-						.anyMatch(line -> trim_text.equals(line.trim()));
-		}
-	}
-
-	/**
-	 * Remove all row equals to a given text from a file.
-	 *
-	 * @param f path to the file relative to root
-	 * @param text the line to remove. Comparisions are as in searchRow
-	 * @param skip number of lines at the begining of the file to skip
-	 *
-	 * TODO: replace writer with nio
-	 */
-	private void deleteRows(Path f, String text, int skip) throws IOException {
-		final String trim_text = text.trim();
-		// Implementation: the file is read line by line and lines not matching
-		// are written to a temporary file. At the end, the temporary file is
-		// moved to replace the original one
-		Path tmp_file = f.getParent().resolve(f.getFileName().toString() + "_tmp");
-		try (
-			BufferedWriter writer = Files.newBufferedWriter(tmp_file);
-			FileLineReader reader = new FileLineReader(f);
-		) {
-			int i = 0;
-			for (String line : reader) {
-				if (i < skip || !trim_text.equals(line.trim())) {
-					writer.write(line + System.getProperty("line.separator"));
-				}
-				++i;
-			}
-		}
-		catch (IOException e) {
-			Files.delete(tmp_file);
-			throw e;
-		}
-		Files.move(tmp_file, f, StandardCopyOption.REPLACE_EXISTING);
-	}
-
-	public void testRowsOps() {
-		String randomline = "oibruaiovbrowa", randomline2 = "giancarlo";
-		Path totf = root.resolve(randomline);
-		try {
-			totf = Files.createFile(totf);
-			addRow(totf, randomline);
-			addRow(totf, randomline2);
-			if (!searchRow(totf, randomline, 0)) {
-				throw new RuntimeException("First line written not found!");
-			}
-			if (!searchRow(totf, randomline2, 1)) {
-				throw new RuntimeException("Second line written not found!");
-			}
-			if (searchRow(totf, randomline, 1)) {
-				throw new RuntimeException("Line found, should have skipped!");
-			}
-		}
-		catch (IOException e) {
-			throw new RuntimeException("IOException :c");
-		}
 	}
 
 	// ============================== USERS ==================================
@@ -228,9 +133,8 @@ public class DBInterface {
 			Files.createDirectory(doc_path);
 
 			// A user has permission over its own documents
-			byte[] bytes = (usr + linesep).getBytes(utf8);
-			Files.write(doc_path.resolve(editors_file), bytes);
-			addRow(usr_path.resolve(permissions_file), name);
+			IOUtils.createFileContent(doc_path.resolve(editors_file), usr);
+			IOUtils.addRow(usr_path.resolve(permissions_file), name);
 			for (Integer i = 0; i < n; ++i) {
 				Files.createFile(doc_path.resolve(section_file_prefix + i.toString()));
 			}
@@ -244,6 +148,33 @@ public class DBInterface {
 		}
 	}
 
+	/**
+	 * Invites a user to collaborate on a document. If the user has already
+	 * permission on the document, this function does nothing (is idempotent).
+	 * Synchronized.
+	 *
+	 * @param owner owner of the document
+	 * @param doc name of the document
+	 * @param usr_invited user invited to collaborate on doc
+	 * @param pending specifies whether this invitation is pending or not
+	 */
+	public void invite(String owner, String doc, String usr_invited, boolean pending) throws IOException {
+		Path doc_editors = root.resolve(owner).resolve(doc).resolve(editors_file);
+		Path usr_folder = root.resolve(usr_invited);
+		try {
+			fs_rwlock.writeLock().lock();
+			if (!IOUtils.searchRow(doc_editors, usr_invited, 0)) {
+				IOUtils.addRow(doc_editors, usr_invited);
+				IOUtils.addRow(usr_folder.resolve(permissions_file), owner + "/" + doc);
+				if (pending) {
+					IOUtils.addRow(usr_folder.resolve(invitations_file), owner + "/" + doc);
+				}
+			}
+		}
+		finally {
+			fs_rwlock.writeLock().unlock();
+		}
+	}
 
 	// ============================= SECTIONS ================================
 	/**
@@ -274,7 +205,8 @@ public class DBInterface {
 	}
 
 	/**
-	 * Get the size of the section file being modified by this user.
+	 * Get the size of the section file being modified by this user. Not
+	 * synchronized.
 	 *
 	 * @param usr the user
 	 * @return the size of the section this user is modifying, or -1 if they
@@ -312,7 +244,7 @@ public class DBInterface {
 		try {
 			fs_rwlock.readLock().lock();
 			// Check permissions
-			if (!searchRow(doc_path.resolve(editors_file), usr, 0)) {
+			if (!IOUtils.searchRow(doc_path.resolve(editors_file), usr, 0)) {
 				throw new NoPermissionException(usr, sec.getQualifiedDocumentName());
 			}
 			// Check existence
@@ -337,6 +269,8 @@ public class DBInterface {
 			isEditing.put(usr, sec);
 			beingEdited.put(sec, true);
 			return FileChannel.open(sec_path, StandardOpenOption.READ);
+			// Now the writeLock can be released because only the user can
+			// modify the section file, then no need for synchronization
 		}
 		finally {
 			edit_rwlock.writeLock().unlock();
@@ -366,23 +300,7 @@ public class DBInterface {
 		}
 		// Write on the file the whole Channel. No need to synchronize
 		// because noone else can modify this section at this time.
-		ByteBuffer sizebuff = ByteBuffer.allocate(Long.SIZE / Byte.SIZE);
-		sizebuff.clear();
-		while (sizebuff.remaining() > 0) {
-			newContent.read(sizebuff);
-		}
-		sizebuff.flip();
-		long filesize = sizebuff.getLong();
-		try (
-			FileChannel outFile = FileChannel.open(root.resolve(sec.getFullPath()), StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-		) {
-			long pos = 0;
-			while (filesize > 0) {
-				long count = outFile.transferFrom(newContent, pos, filesize);
-				pos += count;
-				filesize -= count;
-			}
-		}
+		IOUtils.channelToFile(newContent, root.resolve(sec.getFullPath()));
 		// Release edit lock on the section
 		try {
 			edit_rwlock.writeLock().lock();

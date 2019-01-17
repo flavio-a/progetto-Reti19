@@ -1,16 +1,16 @@
 package server;
 
-// import java.util.*;
+import java.util.concurrent.*;
 import java.rmi.*;
 import java.rmi.server.*;
 import java.rmi.registry.*;
 import java.io.IOException;
+import java.net.*;
 import server.lib.*;
 // DEBUG
 import java.nio.*;
 import java.nio.file.*;
 import java.nio.channels.*;
-import java.nio.charset.*;
 
 public class TURINGServer implements RegistrationInterface, Runnable {
 	// ================================ STATIC ================================
@@ -20,8 +20,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 
 	public static void main(String[] args) {
 		try {
-			TURINGServer server = new TURINGServer(Integer.parseInt(args[0]));
-			System.out.println("TURING server created");
+			TURINGServer server = new TURINGServer(Integer.parseInt(args[0]), Integer.parseInt(args[2]));
 			if ("test".equals(args[1])) {
 				server.testLocal();
 			}
@@ -35,17 +34,22 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	}
 
 	// ============================== NON STATIC ==============================
-	// private final String db_path;
 	private final DBInterface db_interface;
+	private final ThreadPoolExecutor threadpool;
+	private final ServerSocketChannel server_sock;
 
-	public TURINGServer(int rmi_registry_port, String db_path_set) throws RemoteException, IOException {
+	public TURINGServer(int rmi_registry_port, int server_sock_port, String db_path_set) throws RemoteException, IOException {
 		super();
 		bindRMIRegistry(rmi_registry_port);
 		db_interface = new DBInterface(db_path_set);
+		threadpool = new ThreadPoolExecutor(4, 10, 10, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
+		server_sock = ServerSocketChannel.open();
+		server_sock.socket().bind(new InetSocketAddress(server_sock_port));
+		log("TURING server created");
 	}
 
-	public TURINGServer(int rmi_registry_port) throws RemoteException, IOException {
-		this(rmi_registry_port, default_db_path);
+	public TURINGServer(int rmi_registry_port, int server_sock_port) throws RemoteException, IOException {
+		this(rmi_registry_port, server_sock_port, default_db_path);
 	}
 
 	/**
@@ -76,13 +80,16 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	public void run() {
 		log("Server started");
 		while (true) {
-			try {
-				Thread.sleep(10000);
+			try (
+				SocketChannel chnl = server_sock.accept();
+			) {
+				log("Accepted connection by " + chnl.toString());
+				// Pass the socket over to a thread
+				threadpool.execute(new ConnectionHandler(this, chnl));
 			}
-			catch (Exception e) {
-
+			catch (IOException e) {
+				log("Exception caught while wating for accept: " + e.getMessage());
 			}
-			System.out.println("Server running");
 		}
 	}
 
@@ -111,7 +118,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		log("After each operation logs the operation an may ask for confirmation");
 
 		try {
-			db_interface.testRowsOps();
+			IOUtils.testRowsOps();
 			log("Row operations tested succesfully");
 		}
 		catch (RuntimeException e) {
@@ -129,7 +136,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 				log("User " + usr1 + " logged in");
 			}
 			else {
-				log("User " + usr1 + " not logged in");
+				log("ERROR: user " + usr1 + " not logged in");
 			}
 			db_interface.createDocument(usr1, doc1, nsez1);
 			log("Created document " + doc1 + " of " + usr1 + ": worked?");
@@ -151,19 +158,35 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			log("================ end content ================");
 
 			register(usr2, pwd);
-			log("Created user " + usr2 + ": worked?");
-			System.console().readLine();
+			log("Created user " + usr2);
 
+			// No permission
+			try (
+				FileChannel prova_sez = db_interface.editSection(usr2, sec);
+			) {
+				log("ERROR: " + usr2 + " got editing of " + sec.getDebugRepr() + " but shouldn't have permission");
+			}
+			catch (SectionBusyException e) {
+				log("ERROR: got SectionBusyException, but NoPermissionException expected");
+			}
+			catch (NoPermissionException e) {
+				log(usr2 + " can't modify " + sec.getDebugRepr() + ": no permission");
+			}
+
+			db_interface.invite(usr1, doc1, usr2, false);
+			log("Invited " + usr2 + " to " + usr1 + "/" + doc1);
+
+			// Busy
 			try (
 				FileChannel prova_sez = db_interface.editSection(usr2, sec);
 			){
-				log(usr2 + " got editing of " + sec.getDebugRepr());
+				log("ERROR: " + usr2 + " got editing of " + sec.getDebugRepr() + " but should busy");
 			}
 			catch (SectionBusyException e) {
 				log(usr2 + " can't modify " + sec.getDebugRepr() + ": busy");
 			}
 			catch (NoPermissionException e) {
-				log(usr2 + " can't modify " + sec.getDebugRepr() + ": no permission");
+				log("ERROR: got NoPermissionException, but SectionBusyException expected");
 			}
 
 			try (
@@ -172,20 +195,22 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 				db_interface.finishEditSection(usr1, newContent);
 				log("Edit finished succesfully");
 			}
+
+			// Success
 			try (
 				FileChannel prova_sez = db_interface.editSection(usr2, sec);
 			) {
 				log(usr2 + " got editing of " + sec.getDebugRepr());
 			}
 			catch (SectionBusyException e) {
-				log(usr2 + " can't modify " + sec.getDebugRepr() + ": busy");
+				log("ERROR: got SectionBusyException");
 			}
 			catch (NoPermissionException e) {
-				log(usr2 + " can't modify " + sec.getDebugRepr() + ": no permission");
+				log("ERROR: got NoPermissionException");
 			}
 		}
 		catch (Exception e) {
-			log("Exception during testing:" + e.getMessage());
+			log("ERROR: exception during testing:" + e.getMessage());
 			e.printStackTrace();
 		}
 	}

@@ -12,6 +12,13 @@ mantenuti o possano essere persi, seguendo queste assunzioni:
     devono essere permanenti.
     - Login e modifiche in corso possono essere volatili.
 
+## Architettura
+Il server utilizza multithreading e multiplexing per gestire più client
+contemporaneamente, con un'architettura uguale a quella di Chatty (progetto di
+SO). Il multithreading viene utilizzato perché la risposta a quasi tutte le
+operazioni richiede un'interazione con il filesystem (lento rispetto al
+processore).
+
 ## Storage
 Il server tiene una cartella per ogni utente, al cui interno si trovano:
 - `pwd`: password (rigorosamente in chiaro perché abbiamo a cuore la sicurezza)
@@ -37,35 +44,43 @@ avviene solo durante la registrazione; la cancellazione invece non avviene mai.
 
 ## Login
 Per il login il server controlla l'esistenza del file `DB_ROOT/usr/user_info` e
-a correttezza della password (che deve essere uguale alla prima riga del file).
+a correttezza della password (che deve essere uguale al contenuto del file).
 
 ## Protocolli di comunicazione
+### Messagi TCP
+Il client invia messaggi al server tramite TCP. I messaggi iniziano con 1 byte,
+che specifica il tipo di richiesta, seguito dai parametri della richiesta. I
+dati primitivi sono inviati as-is, le stringhe iniziano con un `int` (4 byte)
+che ne specifica la lunghezza, seguito dai byte della stringa. I vari tipi di
+messaggi, con i rispettivi parametri, sono descritti nell'enum OpKind.
+
+Il primo messaggio di una comunicazione deve essere di `LOGIN`, altrimenti il
+server chiude subito la connessione.
+
 ### Trasferimento sezioni
-Per trasferire una sezione (ie: un file) il protocollo è:
-- Inviare un `long` (8 byte) con la dimensione del file in byte
-- Inviare tutti i byte del file
+Per trasferire una sezione (ie: un file) si invia un `long` (8 byte) con la
+dimensione del file in byte, seguito dai byte del file
 
 # TODO
 Primo tick fatto, secondo tick testato
 - [ ] Operazioni locali da implementare:
   - [x] [x] Registrazione
-  - [x] [x] login
+  - [x] [x] Login
   - [x] [x] Creare un documento
   - [x] [x] Iniziare la modifica di una sezione
   - [x] [x] Finire la modifica
-  - [ ] [ ] Invitare
+  - [x] [ ] Invitare
   - [ ] [ ] Mostrare una sezione
   - [ ] [ ] Mostrare un documento
   - [ ] [ ] Listare i documenti editabili
 - [ ] Esportare servizi in rete:
   - [x] [x] Registrazione
   - [ ] [ ] Login
-  - [ ] [ ] Operazioni di sopra:
-    - [ ] [ ] Creare un documento
-    - [ ] [ ] Modificare una sezione
-    - [ ] [ ] Finire la modifica
-    - [ ] [ ] Invitare
-    - [ ] [ ] Mostrare una sezione
-    - [ ] [ ] Mostrare un documento
-    - [ ] [ ] Listare i documenti editabili
+  - [ ] [ ] Creare un documento
+  - [ ] [ ] Modificare una sezione
+  - [ ] [ ] Finire la modifica
+  - [ ] [ ] Invitare
+  - [ ] [ ] Mostrare una sezione
+  - [ ] [ ] Mostrare un documento
+  - [ ] [ ] Listare i documenti editabili
 - [ ] [ ] Chat
