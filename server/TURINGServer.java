@@ -1,5 +1,6 @@
 package server;
 
+import java.util.*;
 import java.util.concurrent.*;
 import java.rmi.*;
 import java.rmi.server.*;
@@ -38,6 +39,11 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	private final ThreadPoolExecutor threadpool;
 	private final ServerSocketChannel server_sock;
 
+	private final BlockingQueue<SocketChannel> freesc;
+	private final ConcurrentMap<SocketChannel, String> socket_to_user;
+	private final ConcurrentMap<String, SocketChannel> user_to_socket;
+	private final Selector selector;
+
 	public TURINGServer(int rmi_registry_port, int server_sock_port, String db_path_set) throws RemoteException, IOException {
 		super();
 		bindRMIRegistry(rmi_registry_port);
@@ -45,6 +51,15 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		threadpool = new ThreadPoolExecutor(4, 10, 10, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
 		server_sock = ServerSocketChannel.open();
 		server_sock.socket().bind(new InetSocketAddress(server_sock_port));
+		server_sock.configureBlocking(false);
+
+		freesc = new LinkedBlockingQueue<SocketChannel>();
+		socket_to_user = new ConcurrentHashMap<SocketChannel, String>();
+		user_to_socket = new ConcurrentHashMap<String, SocketChannel>();
+
+		selector = Selector.open();
+		server_sock.register(selector, SelectionKey.OP_ACCEPT);
+
 		log("TURING server created");
 	}
 
@@ -76,16 +91,37 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		System.out.println(s);
 	}
 
+	private void spawnConnectionHandler(SocketChannel chnl) {
+		threadpool.execute(new ConnectionHandler(chnl, freesc, socket_to_user, user_to_socket, selector));
+	}
+
 	@Override
 	public void run() {
 		log("Server started");
 		while (true) {
-			try (
-				SocketChannel chnl = server_sock.accept();
-			) {
-				log("Accepted connection by " + chnl.toString());
-				// Pass the socket over to a thread
-				threadpool.execute(new ConnectionHandler(this, chnl));
+			try {
+				selector.select();
+				// Read all sc from freesc and add them back to selector
+				Collection<SocketChannel> tmp = new ArrayList<SocketChannel>(freesc.size());
+				freesc.drainTo(tmp);
+				for (SocketChannel sc: tmp) {
+					sc.register(selector, SelectionKey.OP_READ);
+				}
+				// Handle requests
+				Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
+				while (iterator.hasNext()) {
+					SelectionKey key = iterator.next();
+					if (key.isReadable()) {
+						// Remove this SocketChannel from the selector
+						iterator.remove();
+						spawnConnectionHandler((SocketChannel)key.channel());
+					}
+					else if (key.isAcceptable()) {
+						SocketChannel chnl = server_sock.accept();
+						log("Accepted connection by " + chnl.toString());
+						spawnConnectionHandler(chnl);
+					}
+				}
 			}
 			catch (IOException e) {
 				log("Exception caught while wating for accept: " + e.getMessage());

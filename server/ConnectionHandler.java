@@ -5,12 +5,21 @@ import java.net.*;
 import java.nio.*;
 import java.nio.file.*;
 import java.nio.channels.*;
+import java.util.concurrent.*;
 
 public class ConnectionHandler implements Runnable {
 	private final SocketChannel chnl;
+	private final BlockingQueue<SocketChannel> freesc;
+	private final ConcurrentMap<SocketChannel, String> socket_to_user;
+	private final ConcurrentMap<String, SocketChannel> user_to_socket;
+	private final Selector selector;
 
-	public ConnectionHandler(TURINGServer server, SocketChannel chnl_set) {
+	public ConnectionHandler(SocketChannel chnl_set, BlockingQueue<SocketChannel> freesc_set, ConcurrentMap<SocketChannel, String> socket_to_user_set, ConcurrentMap<String, SocketChannel> user_to_socket_set, Selector selector_set) {
 		chnl = chnl_set;
+		freesc = freesc_set;
+		socket_to_user = socket_to_user_set;
+		user_to_socket = user_to_socket_set;
+		selector = selector_set;
 	}
 
 	@Override

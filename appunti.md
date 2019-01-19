@@ -19,6 +19,16 @@ SO). Il multithreading viene utilizzato perché la risposta a quasi tutte le
 operazioni richiede un'interazione con il filesystem (lento rispetto al
 processore).
 
+I parallelismi con Chatty sono i seguenti:
+- listener = main thread (TURINGServer)
+- workers = ConnectionHandler nella threadpool
+- fd = SocketChannel
+- coda condivisa queue = coda interna della threadpool
+- something to send SocketChannel (fd) back to the main thread (listener)
+    (interrupt of the thread + shared queue): freesc
+- mappa fd -> username = hashtable socket_to_user
+- mappa username -> fd = hashtable user_to_socket
+
 ## Storage
 Il server tiene una cartella per ogni utente, al cui interno si trovano:
 - `pwd`: password (rigorosamente in chiaro perché abbiamo a cuore la sicurezza)
@@ -63,7 +73,7 @@ dimensione del file in byte, seguito dai byte del file
 
 # TODO
 Primo tick fatto, secondo tick testato
-- [ ] Operazioni locali da implementare:
+- [ ] Operazioni sul db:
   - [x] [x] Registrazione
   - [x] [x] Login
   - [x] [x] Creare un documento
@@ -73,7 +83,7 @@ Primo tick fatto, secondo tick testato
   - [ ] [ ] Mostrare una sezione
   - [ ] [ ] Mostrare un documento
   - [ ] [ ] Listare i documenti editabili
-- [ ] Esportare servizi in rete:
+- [ ] Operazioni esportate in rete:
   - [x] [x] Registrazione
   - [ ] [ ] Login
   - [ ] [ ] Creare un documento
