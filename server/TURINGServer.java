@@ -24,8 +24,8 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 
 	public static void main(String[] args) {
 		try {
-			TURINGServer server = new TURINGServer(Integer.parseInt(args[0]), Integer.parseInt(args[2]));
-			if ("test".equals(args[1])) {
+			TURINGServer server = new TURINGServer(Integer.parseInt(args[0]), Integer.parseInt(args[1]));
+			if (args.length > 2 && "test".equals(args[2])) {
 				server.testLocal();
 			}
 			else {
@@ -49,6 +49,11 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 
 	/**
 	 * Creates a new instance of TURINGServer
+	 *
+	 * @param rmi_registry_port port on which listen for the RMI registry
+	 * @param server_sock_port port on which the server listen for new
+	 *                         connections
+	 * @param db_path_set path to the db folder
 	 */
 	public TURINGServer(int rmi_registry_port, int server_sock_port, String db_path_set) throws RemoteException, IOException {
 		super();
@@ -72,6 +77,10 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	/**
 	 * Creates a new instance of TURINGServer specifying only non-defaulted
 	 * parameters.
+	 *
+	 * @param rmi_registry_port port on which listen for the RMI registry
+	 * @param server_sock_port port on which the server listen for new
+	 *                         connections
 	 */
 	public TURINGServer(int rmi_registry_port, int server_sock_port) throws RemoteException, IOException {
 		this(rmi_registry_port, server_sock_port, default_db_path);
@@ -111,7 +120,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		threadpool.execute(new ConnectionHandler(chnl, db_interface, freesc, socket_to_user, user_to_socket, selector));
 	}
 
-	/** 
+	/**
 	 * Run this instance of TURING server
 	 */
 	@Override

@@ -6,10 +6,11 @@
 package turinggui;
 
 import server.lib.*;
+import java.io.IOException;
+import java.nio.channels.*;
+import java.net.*;
 import java.rmi.*;
 import java.rmi.registry.*;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -47,8 +48,15 @@ public class MainWindow extends javax.swing.JFrame {
     private void initComponents() {
 
         registerButton = new javax.swing.JButton();
+        usernameTextfield = new javax.swing.JTextField();
+        pwdTextfield = new javax.swing.JTextField();
+        jLabel1 = new javax.swing.JLabel();
+        jLabel2 = new javax.swing.JLabel();
+        loginButton = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setTitle("Login");
+        setMinimumSize(new java.awt.Dimension(228, 153));
 
         registerButton.setText("Register");
         registerButton.addActionListener(new java.awt.event.ActionListener() {
@@ -57,21 +65,62 @@ public class MainWindow extends javax.swing.JFrame {
             }
         });
 
+        usernameTextfield.setToolTipText("Username");
+        usernameTextfield.setMinimumSize(new java.awt.Dimension(4, 24));
+        usernameTextfield.setPreferredSize(new java.awt.Dimension(100, 24));
+
+        pwdTextfield.setToolTipText("Password");
+        pwdTextfield.setMinimumSize(new java.awt.Dimension(4, 24));
+        pwdTextfield.setPreferredSize(new java.awt.Dimension(100, 24));
+
+        jLabel1.setText("Username:");
+
+        jLabel2.setText("Password:");
+
+        loginButton.setText("Login");
+        loginButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                loginButtonActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
         getContentPane().setLayout(layout);
         layout.setHorizontalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(84, 84, 84)
-                .addComponent(registerButton)
-                .addContainerGap(222, Short.MAX_VALUE))
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(layout.createSequentialGroup()
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel1)
+                            .addComponent(jLabel2))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(pwdTextfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(usernameTextfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                    .addGroup(layout.createSequentialGroup()
+                        .addComponent(loginButton)
+                        .addGap(37, 37, 37)
+                        .addComponent(registerButton)))
+                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
             .addGroup(layout.createSequentialGroup()
-                .addGap(95, 95, 95)
-                .addComponent(registerButton)
-                .addContainerGap(180, Short.MAX_VALUE))
+                .addContainerGap()
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(usernameTextfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel1))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(pwdTextfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel2))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 50, Short.MAX_VALUE)
+                .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(registerButton)
+                    .addComponent(loginButton))
+                .addContainerGap())
         );
 
         pack();
@@ -79,13 +128,12 @@ public class MainWindow extends javax.swing.JFrame {
 
     private void registerButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_registerButtonActionPerformed
         try {
-            // TODO: ask all datas via popups or something
             if (registrationServer == null) {
                 Registry r = LocateRegistry.getRegistry(12345);
                 registrationServer = (RegistrationInterface)r.lookup("TURING-REGISTRATION");
             }
-            String usr = "usr";
-            registrationServer.register(usr, "pwd");
+            String usr = usernameTextfield.getText();
+            registrationServer.register(usr, pwdTextfield.getText());
             UserLog("Sucessfully registered username \"" + usr + "\"");
         }
         catch (NotBoundException e) {
@@ -100,6 +148,25 @@ public class MainWindow extends javax.swing.JFrame {
             UserLog(e.getMessage());
         }
     }//GEN-LAST:event_registerButtonActionPerformed
+
+    private void loginButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginButtonActionPerformed
+        SocketAddress addr = new InetSocketAddress("127.0.0.1", 55000);
+	try (
+            SocketChannel chnl = SocketChannel.open();
+        ) {
+            chnl.connect(addr);
+            String usr = usernameTextfield.getText();
+            IOUtils.writeOpKind(OpKind.OP_LOGIN, chnl);
+            IOUtils.writeString(usr, chnl);
+            IOUtils.writeString(pwdTextfield.getText(), chnl);
+            if (IOUtils.readOpKind(chnl) == OpKind.RESP_OK) {
+                UserLog("Sucessfully logged in with username \"" + usr + "\"");
+            }
+        }
+        catch (IOException e) {
+            UserLog("Error connecting to the server: try again");
+        }
+    }//GEN-LAST:event_loginButtonActionPerformed
 
     /**
      * @param args the command line arguments
@@ -138,6 +205,11 @@ public class MainWindow extends javax.swing.JFrame {
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
+    private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel2;
+    private javax.swing.JButton loginButton;
+    private javax.swing.JTextField pwdTextfield;
     private javax.swing.JButton registerButton;
+    private javax.swing.JTextField usernameTextfield;
     // End of variables declaration//GEN-END:variables
 }

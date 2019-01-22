@@ -43,27 +43,34 @@ public class ConnectionHandler implements Runnable {
 			String usr = socket_to_user.get(chnl);
 			if (usr == null) {
 				if (op == OpKind.OP_LOGIN) {
+					log("Requested login");
 					// Login
 					String login_usr, login_pwd;
 					login_usr = IOUtils.readString(chnl);
 					login_pwd = IOUtils.readString(chnl);
 					if (!db_interface.checkUser(login_usr, login_pwd)) {
+						log("User/pwd mismatch");
 						// Wrong usr/pwd combination
 						IOUtils.writeOpKind(OpKind.ERR_INVALID_LOGIN, chnl);
 						chnl.close();
 						return;
 					}
-					if (user_to_socket.get(usr) != null && user_to_socket.get(usr) != chnl) {
+					SocketChannel other_chnl = user_to_socket.get(login_usr);
+					if (other_chnl != null && other_chnl != chnl) {
+						log("User already in use");
 						// Username already in use on another connection
 						IOUtils.writeOpKind(OpKind.ERR_USERNAME_BUSY, chnl);
 						chnl.close();
 						return;
 					}
-					socket_to_user.put(chnl, usr);
-					user_to_socket.put(usr, chnl);
+					log("Login sucessfull with username \"" + login_usr + "\"");
+					socket_to_user.put(chnl, login_usr);
+					user_to_socket.put(login_usr, chnl);
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
 				}
 				else {
 					// Not logged connection with a non LOGIN operation
+					log("Requested non login on unlogged socket");
 					IOUtils.writeOpKind(OpKind.ERR_UNLOGGED, chnl);
 					chnl.close();
 					return;
@@ -72,9 +79,11 @@ public class ConnectionHandler implements Runnable {
 			// usr != null
 			switch (op) {
 				case OP_LOGIN:
+					log("Requested login on logged socket");
 					IOUtils.writeOpKind(OpKind.ERR_ALREADY_LOGGED, chnl);
 					break;
 				default:
+					log("Requested unknown operation: " + op.toString());
 					IOUtils.writeOpKind(OpKind.ERR_UNKNOWN_OP, chnl);
 					break;
 			}

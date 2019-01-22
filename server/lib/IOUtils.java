@@ -161,6 +161,7 @@ public final class IOUtils {
 		int len = buff.getInt();
 		StringBuilder strbuilder = new StringBuilder(len);
 		buff.clear();
+		buff.limit(Math.min(len, buff.capacity()));
 		while (len > 0) {
 			len -= chnl.read(buff);
 			// TODO: doesn't work with any character

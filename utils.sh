@@ -20,13 +20,13 @@ case $1 in
 		;;
 	runserver)
 		$0 compile
-		java server.TURINGServer 12345
+		java server.TURINGServer 12345 55000
 		;;
 	runtest)
 		$0 cleandb
 		$0 compile
 		if [ $? == 0 ]; then
-			java server.TURINGServer 12345 "test"
+			java server.TURINGServer 12345 55000 "test"
 		fi
 		;;
 	cleanall)
