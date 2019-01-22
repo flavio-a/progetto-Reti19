@@ -95,6 +95,102 @@ public final class IOUtils {
 
 	// =============================== CHANNELS ===============================
 	/**
+	 * Get the kind of operation from a channel. Consume its first byte.
+	 *
+	 * @param chnl channel to read from
+	 * @return OpKind read from the chnl
+	 */
+	public static OpKind readOpKind(ReadableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(1);
+		buff.clear();
+		while (buff.remaining() > 0) {
+			chnl.read(buff);
+		}
+		buff.flip();
+		return OpKind.getOp(buff.get());
+	}
+
+	/**
+	 * Write an OpKind on a channel
+	 *
+	 * @param op kind of operation to write
+	 * @param chnl channel to write to
+	 */
+	public static void writeOpKind(OpKind op, WritableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(1);
+		buff.clear();
+		buff.put(OpKind.getNum(op));
+		buff.flip();
+		while (buff.remaining() > 0) {
+			chnl.write(buff);
+		}
+	}
+
+	/**
+	 * Write an int on a channel
+	 *
+	 * @param n int to write
+	 * @param chnl channel to write to
+	 */
+	public static void writeInt(int n, WritableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
+		buff.clear();
+		buff.putInt(n);
+		buff.flip();
+		while (buff.remaining() > 0) {
+			chnl.write(buff);
+		}
+	}
+
+	/**
+	 * Read a string from a chnl (provided that the format is the one specified
+	 * in the report)
+	 *
+	 * @param chnl channel to read from
+	 * @return string read
+	 */
+	public static String readString(ReadableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(20);
+		buff.clear();
+		// Read an int
+		buff.limit(Integer.BYTES);
+		while (buff.remaining() > 0) {
+			chnl.read(buff);
+		}
+		buff.flip();
+		int len = buff.getInt();
+		StringBuilder strbuilder = new StringBuilder(len);
+		buff.clear();
+		while (len > 0) {
+			len -= chnl.read(buff);
+			// TODO: doesn't work with any character
+			buff.flip();
+			while (buff.hasRemaining()) {
+				strbuilder.append((char)buff.get());
+			}
+			buff.clear();
+		}
+		return strbuilder.toString();
+	}
+
+	/**
+	 * Write a string to a chnl in the format specified in the report
+	 *
+	 * @param str string to write
+	 * @param chnl channel to write to
+	 */
+	public static void writeString(String str, WritableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES + str.length() * 4);
+		buff.clear();
+		buff.putInt(str.length());
+		buff.put(str.getBytes());
+		buff.flip();
+		while (buff.hasRemaining()) {
+			chnl.write(buff);
+		}
+	}
+
+	/**
 	 * Copies a channel to a file using nio and direct channels tranfer. The
 	 * file is overwritten with the new content. The channel copied should
 	 * start with a long (Long.BYTES bytes) with the length of the

@@ -9,12 +9,14 @@ case $1 in
 	cleanbuild)
 		find server -name '*.class' -delete
 		;;
-	cleanall)
-		$0 cleandb
-		$0 cleanbuild
-		;;
 	compile)
 		javac -Xlint:unchecked server/TURINGServer.java
+		;;
+	createdocs)
+		javadoc server server.lib -link https://docs.oracle.com/javase/8/docs/api/ -d docs
+		;;
+	cleandocs)
+		rm -rf docs/*
 		;;
 	runserver)
 		$0 compile
@@ -26,5 +28,10 @@ case $1 in
 		if [ $? == 0 ]; then
 			java server.TURINGServer 12345 "test"
 		fi
+		;;
+	cleanall)
+		$0 cleandb
+		$0 cleanbuild
+		$0 cleandocs
 		;;
 esac

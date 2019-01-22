@@ -4,6 +4,9 @@ TURING_db/
 ## Compiled class file
 *.class
 
+## Auto-generated doc
+docs/
+
 ## Package Files
 *.jar
 *.war

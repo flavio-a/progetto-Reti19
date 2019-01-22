@@ -59,13 +59,34 @@ a correttezza della password (che deve essere uguale al contenuto del file).
 ## Protocolli di comunicazione
 ### Messagi TCP
 Il client invia messaggi al server tramite TCP. I messaggi iniziano con 1 byte,
-che specifica il tipo di richiesta, seguito dai parametri della richiesta. I
-dati primitivi sono inviati as-is, le stringhe iniziano con un `int` (4 byte)
-che ne specifica la lunghezza, seguito dai byte della stringa. I vari tipi di
-messaggi, con i rispettivi parametri, sono descritti nell'enum OpKind.
+che specifica il tipo di richiesta, seguito dai parametri della richiesta. Il
+server risponde a tutte le richieste con un ack, seguito da eventuali altri
+dati della risposta. In caso di errore l'ack è un codice di errore. I dati
+primitivi sono inviati as-is, le stringhe iniziano con un `int` (4 byte) che ne
+specifica la lunghezza, seguito dai byte della stringa.
+
+Le possibile richieste, con i rispettivi parametri, sono:
+- `OP_LOGIN`(string, string) i parametri sono (nell'ordine) username e password.
+    Un login viene associato ad un SocketChannel; tutte le richieste su quel
+    socket vengono eseguite con il login. Un'operazione di login su un socket
+    già connesso fallisce.
+- `OP_CREATE`(string, int) i parametri sono il nome del documento e il numero di
+    sezioni.
+- `OP_EDIT`(string, int) i parametri sono il nome completo del documento
+    (ie: owner/name) e il numero della sessione
+
+Le possibili risposte sono:
+- `RESP_OK` operazione eseguita con successo
+- `ERR_RETRY` operazione fallita, riprovare tra poco
+- `ERR_UNKNOWN_OP` richiesta un'operazione sconosciuta
+- `ERR_UNLOGGED` richiesta un'operazione diversa da login su un socket non
+    loggato
+- `ERR_INVALID_LOGIN` credenziali errate
+- `ERR_USERNAME_BUSY` username già connesso su un altro socket
+- `ERR_ALREADY_LOGGED` operazione di login in un socket già connesso
 
 Il primo messaggio di una comunicazione deve essere di `LOGIN`, altrimenti il
-server chiude subito la connessione.
+server chiude subito la connessione rispondendo con un `ERR_UNLOGGED`.
 
 ### Trasferimento sezioni
 Per trasferire una sezione (ie: un file) si invia un `long` (8 byte) con la

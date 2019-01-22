@@ -13,6 +13,9 @@ import java.nio.*;
 import java.nio.file.*;
 import java.nio.channels.*;
 
+/**
+ * Main TURING server class
+ */
 public class TURINGServer implements RegistrationInterface, Runnable {
 	// ================================ STATIC ================================
 	public static final String rmi_registry_name = "TURING-REGISTRATION";
@@ -44,6 +47,9 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	private final ConcurrentMap<String, SocketChannel> user_to_socket;
 	private final Selector selector;
 
+	/**
+	 * Creates a new instance of TURINGServer
+	 */
 	public TURINGServer(int rmi_registry_port, int server_sock_port, String db_path_set) throws RemoteException, IOException {
 		super();
 		bindRMIRegistry(rmi_registry_port);
@@ -63,6 +69,10 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		log("TURING server created");
 	}
 
+	/**
+	 * Creates a new instance of TURINGServer specifying only non-defaulted
+	 * parameters.
+	 */
 	public TURINGServer(int rmi_registry_port, int server_sock_port) throws RemoteException, IOException {
 		this(rmi_registry_port, server_sock_port, default_db_path);
 	}
@@ -91,10 +101,19 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		System.out.println(s);
 	}
 
+	/**
+	 * Utility function to spawn a ConnectionHandler. Here just because of the
+	 * number of parameters.
+	 *
+	 * @param chnl channel of the connection to be handled
+	 */
 	private void spawnConnectionHandler(SocketChannel chnl) {
-		threadpool.execute(new ConnectionHandler(chnl, freesc, socket_to_user, user_to_socket, selector));
+		threadpool.execute(new ConnectionHandler(chnl, db_interface, freesc, socket_to_user, user_to_socket, selector));
 	}
 
+	/** 
+	 * Run this instance of TURING server
+	 */
 	@Override
 	public void run() {
 		log("Server started");
@@ -129,10 +148,13 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		}
 	}
 
-	// Description in the interface
+	/**
+	 * @inheritDoc
+	 */
 	@Override
 	public void register(String usr, String pwd) throws RemoteException, InternalServerException, UsernameAlreadyInUseException {
 		log("Request: registration of username \"" + usr + "\"");
+		// TODO: check that usr doesn't contain '/'
 		try {
 			if (db_interface.createUser(usr, pwd)) {
 				log("User created succesfully");

@@ -14,7 +14,14 @@ public final class Section {
 	public Section(String owner_set, String doc_name_set, int n_set) {
 		owner = owner_set.trim();
 		doc_name = doc_name_set.trim();
-		n= n_set;
+		n = n_set;
+	}
+
+	public Section(String full_doc_name, int n_set) {
+		int idx_slash = full_doc_name.indexOf('/');
+		owner = full_doc_name.substring(0, idx_slash);
+		doc_name = full_doc_name.substring(idx_slash + 1);
+		n = n_set;
 	}
 
 	public int getN() {
