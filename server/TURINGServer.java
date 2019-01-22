@@ -40,7 +40,6 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	// ============================== NON STATIC ==============================
 	private final DBInterface db_interface;
 	private final ThreadPoolExecutor threadpool;
-	private final ServerSocketChannel server_sock;
 
 	private final BlockingQueue<SocketChannel> freesc;
 	private final ConcurrentMap<SocketChannel, String> socket_to_user;
@@ -60,7 +59,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		bindRMIRegistry(rmi_registry_port);
 		db_interface = new DBInterface(db_path_set);
 		threadpool = new ThreadPoolExecutor(4, 10, 10, TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>());
-		server_sock = ServerSocketChannel.open();
+		ServerSocketChannel server_sock = ServerSocketChannel.open();
 		server_sock.socket().bind(new InetSocketAddress(server_sock_port));
 		server_sock.configureBlocking(false);
 
@@ -133,23 +132,23 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 				Collection<SocketChannel> tmp = new ArrayList<SocketChannel>(freesc.size());
 				freesc.drainTo(tmp);
 				for (SocketChannel sc: tmp) {
+					sc.configureBlocking(false);
 					sc.register(selector, SelectionKey.OP_READ);
 				}
 				// Handle requests
-				Iterator<SelectionKey> iterator = selector.selectedKeys().iterator();
-				while (iterator.hasNext()) {
-					SelectionKey key = iterator.next();
+				for (SelectionKey key: selector.selectedKeys()) {
 					if (key.isReadable()) {
 						// Remove this SocketChannel from the selector
-						iterator.remove();
+						key.cancel();
 						spawnConnectionHandler((SocketChannel)key.channel());
 					}
 					else if (key.isAcceptable()) {
-						SocketChannel chnl = server_sock.accept();
+						SocketChannel chnl = ((ServerSocketChannel)key.channel()).accept();
 						log("Accepted connection by " + chnl.toString());
 						spawnConnectionHandler(chnl);
 					}
 				}
+				selector.selectedKeys().clear();
 			}
 			catch (IOException e) {
 				log("Exception caught while wating for accept: " + e.getMessage());

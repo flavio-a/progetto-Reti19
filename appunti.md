@@ -65,11 +65,15 @@ dati della risposta. In caso di errore l'ack è un codice di errore. I dati
 primitivi sono inviati as-is, le stringhe iniziano con un `int` (4 byte) che ne
 specifica la lunghezza, seguito dai byte della stringa.
 
-Le possibile richieste, con i rispettivi parametri, sono:
+Segue un elenco delle possibili richieste, con i rispettivi parametri e
+possibili risposte di errore. Tutte le richieste ricevono come risposta
+`RESP_OK` in caso di successo e possono ricevere `ERR_RETRY` come codice
+d'errore.
 - `OP_LOGIN`(string, string) i parametri sono (nell'ordine) username e password.
     Un login viene associato ad un SocketChannel; tutte le richieste su quel
     socket vengono eseguite con il login. Un'operazione di login su un socket
-    già connesso fallisce.
+    già connesso fallisce. Può rispondere `ERR_UNLOGGED`, `ERR_INVALID_LOGIN`,
+    `ERR_USERNAME_BUSY`, `ERR_ALREADY_LOGGED`
 - `OP_CREATE`(string, int) i parametri sono il nome del documento e il numero di
     sezioni.
 - `OP_EDIT`(string, int) i parametri sono il nome completo del documento

@@ -99,6 +99,7 @@ public class DBInterface {
 		fs_rwlock.readLock().lock();
 		Path usr_info = root.resolve(usr).resolve(pwd_file);
 		if (!usr_info.toFile().exists()) {
+			fs_rwlock.readLock().unlock();
 			return false;
 		}
 		try (

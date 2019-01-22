@@ -36,60 +36,90 @@ public class ConnectionHandler implements Runnable {
 		System.out.println(s);
 	}
 
+	/**
+	 * Main logic of the class. Handle this instance's SocketChannel.
+	 *<p>
+	 * This function is intended to be the {@link run} body, moved in another
+	 * function in order to be wrapped and ensure the correct end of this
+	 * object lifespan: either return the SocketChannel to the listener or
+	 * close it.
+	 *
+	 * @return whether this instance's SocketChannel should be returned to the
+	 *         listener (true) or not (false).
+	 */
+	private boolean handleConnection() throws IOException {
+		chnl.configureBlocking(true);
+		OpKind op = IOUtils.readOpKind(chnl);
+		String usr = socket_to_user.get(chnl);
+		if (usr == null) {
+			if (op == OpKind.OP_LOGIN) {
+				log("Requested login");
+				// Login
+				String login_usr, login_pwd;
+				login_usr = IOUtils.readString(chnl);
+				login_pwd = IOUtils.readString(chnl);
+				if (!db_interface.checkUser(login_usr, login_pwd)) {
+					log("User/pwd mismatch");
+					// Wrong usr/pwd combination
+					IOUtils.writeOpKind(OpKind.ERR_INVALID_LOGIN, chnl);
+					return false;
+				}
+				SocketChannel other_chnl = user_to_socket.get(login_usr);
+				if (other_chnl != null && other_chnl != chnl) {
+					log("User already in use");
+					// Username already in use on another connection
+					IOUtils.writeOpKind(OpKind.ERR_USERNAME_BUSY, chnl);
+					return false;
+				}
+				log("Login sucessfull with username \"" + login_usr + "\"");
+				socket_to_user.put(chnl, login_usr);
+				user_to_socket.put(login_usr, chnl);
+				IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+				return true;
+			}
+			else {
+				// Not logged connection with a non LOGIN operation
+				log("Requested non login on unlogged socket");
+				IOUtils.writeOpKind(OpKind.ERR_UNLOGGED, chnl);
+				return false;
+			}
+		}
+		// usr != null
+		switch (op) {
+			case OP_LOGIN:
+				log("Requested login on logged socket");
+				IOUtils.writeOpKind(OpKind.ERR_ALREADY_LOGGED, chnl);
+				break;
+			default:
+				log("Requested unknown operation: " + op.toString());
+				IOUtils.writeOpKind(OpKind.ERR_UNKNOWN_OP, chnl);
+				break;
+		}
+		return true;
+	}
+
 	@Override
 	public void run() {
+		boolean shouldReturn;
 		try {
-			OpKind op = IOUtils.readOpKind(chnl);
-			String usr = socket_to_user.get(chnl);
-			if (usr == null) {
-				if (op == OpKind.OP_LOGIN) {
-					log("Requested login");
-					// Login
-					String login_usr, login_pwd;
-					login_usr = IOUtils.readString(chnl);
-					login_pwd = IOUtils.readString(chnl);
-					if (!db_interface.checkUser(login_usr, login_pwd)) {
-						log("User/pwd mismatch");
-						// Wrong usr/pwd combination
-						IOUtils.writeOpKind(OpKind.ERR_INVALID_LOGIN, chnl);
-						chnl.close();
-						return;
-					}
-					SocketChannel other_chnl = user_to_socket.get(login_usr);
-					if (other_chnl != null && other_chnl != chnl) {
-						log("User already in use");
-						// Username already in use on another connection
-						IOUtils.writeOpKind(OpKind.ERR_USERNAME_BUSY, chnl);
-						chnl.close();
-						return;
-					}
-					log("Login sucessfull with username \"" + login_usr + "\"");
-					socket_to_user.put(chnl, login_usr);
-					user_to_socket.put(login_usr, chnl);
-					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
-				}
-				else {
-					// Not logged connection with a non LOGIN operation
-					log("Requested non login on unlogged socket");
-					IOUtils.writeOpKind(OpKind.ERR_UNLOGGED, chnl);
-					chnl.close();
-					return;
-				}
-			}
-			// usr != null
-			switch (op) {
-				case OP_LOGIN:
-					log("Requested login on logged socket");
-					IOUtils.writeOpKind(OpKind.ERR_ALREADY_LOGGED, chnl);
-					break;
-				default:
-					log("Requested unknown operation: " + op.toString());
-					IOUtils.writeOpKind(OpKind.ERR_UNKNOWN_OP, chnl);
-					break;
-			}
+			shouldReturn = this.handleConnection();
 		}
 		catch (IOException e) {
 			log("Exception handling connection: " + e.getMessage());
+			shouldReturn = false;
+		}
+		if (shouldReturn) {
+			freesc.add(chnl);
+			selector.wakeup();
+		}
+		else {
+			try {
+				chnl.close();
+			}
+			catch (IOException e) {
+				log("Error closing a connection: PANIC");
+				e.printStackTrace();
+			}
 		}
 	}
 }

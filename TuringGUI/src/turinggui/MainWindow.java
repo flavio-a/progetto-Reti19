@@ -159,8 +159,21 @@ public class MainWindow extends javax.swing.JFrame {
             IOUtils.writeOpKind(OpKind.OP_LOGIN, chnl);
             IOUtils.writeString(usr, chnl);
             IOUtils.writeString(pwdTextfield.getText(), chnl);
-            if (IOUtils.readOpKind(chnl) == OpKind.RESP_OK) {
-                UserLog("Sucessfully logged in with username \"" + usr + "\"");
+            OpKind response = IOUtils.readOpKind(chnl);
+            switch (response) {
+                case RESP_OK:
+                    UserLog("Sucessfully logged in with username \"" + usr + "\"");
+                    // Spawn the real interface and close itself
+                    break;
+                case ERR_RETRY:
+                    UserLog("Server error: try again");
+                    break;
+                case ERR_INVALID_LOGIN:
+                    UserLog("Wrong credentials");
+                    break;
+                case ERR_USERNAME_BUSY:
+                    UserLog("Username already connected");
+                    break;
             }
         }
         catch (IOException e) {
