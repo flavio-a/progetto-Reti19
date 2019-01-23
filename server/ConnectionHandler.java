@@ -90,6 +90,118 @@ public class ConnectionHandler implements Runnable {
 				log("Requested login on logged socket");
 				IOUtils.writeOpKind(OpKind.ERR_ALREADY_LOGGED, chnl);
 				break;
+			case OP_CREATE: {
+				String docname = IOUtils.readString(chnl);
+				int nsec = IOUtils.readInt(chnl);
+				if (db_interface.createDocument(usr, docname, nsec)) {
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+				}
+				else {
+					IOUtils.writeOpKind(OpKind.ERR_DOCUMENT_EXISTS, chnl);
+				}
+			}
+			break;
+			case OP_EDIT: {
+				String fulldocname = IOUtils.readString(chnl);
+				int nsec = IOUtils.readInt(chnl);
+				Section sec = new Section(fulldocname, nsec);
+				try {
+					Path section_path = db_interface.editSection(usr, sec);
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+					IOUtils.fileToChannel(section_path, chnl);
+				}
+				catch (NoSuchDocumentException e) {
+					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
+				}
+				catch (NoPermissionException e) {
+					IOUtils.writeOpKind(OpKind.ERR_PERMISSION, chnl);
+				}
+				catch (NoSuchSectionException e) {
+					IOUtils.writeOpKind(OpKind.ERR_NO_SECTION, chnl);
+				}
+				catch (SectionBusyException e) {
+					IOUtils.writeOpKind(OpKind.ERR_SECTION_BUSY, chnl);
+				}
+                catch (UserBusyException e) {
+					IOUtils.writeOpKind(OpKind.ERR_USER_BUSY, chnl);
+				}
+			}
+			break;
+			case OP_ENDEDIT: {
+				try {
+					db_interface.finishEditSection(usr, chnl);
+				}
+				catch (UserFreeException e) {
+					IOUtils.writeOpKind(OpKind.ERR_USER_FREE, chnl);
+				}
+			}
+			break;
+			case OP_SHOWSEC: {
+				String fulldocname = IOUtils.readString(chnl);
+				int nsec = IOUtils.readInt(chnl);
+				Section sec = new Section(fulldocname, nsec);
+				if (!db_interface.documentExist(sec.getDocumentPath())) {
+					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
+				}
+				else if (!db_interface.sectionExist(sec)) {
+					IOUtils.writeOpKind(OpKind.ERR_NO_SECTION, chnl);
+				}
+				else {
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+					IOUtils.writeBool(db_interface.isBeingModified(sec), chnl);
+					IOUtils.fileToChannel(
+						db_interface.getAbsolutePath(sec.getFullPath()), chnl
+					);
+				}
+			}
+			break;
+			case OP_SHOWDOC: {
+				String fulldocname = IOUtils.readString(chnl);
+				Path docpath = Paths.get(fulldocname);
+				if (!db_interface.documentExist(docpath)) {
+					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
+				}
+				else {
+					int numsec = db_interface.sectionNumber(docpath);
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+					IOUtils.writeInt(numsec, chnl);
+					for (int i = 0; i < numsec; ++i) {
+						Section sec = new Section(fulldocname, i);
+						IOUtils.writeBool(db_interface.isBeingModified(sec), chnl);
+						IOUtils.fileToChannel(
+							db_interface.getAbsolutePath(sec.getFullPath()), chnl
+						);
+					}
+				}
+			}
+			break;
+			case OP_INVITE: {
+				String invited_usr = IOUtils.readString(chnl);
+				String docname = IOUtils.readString(chnl);
+				if (!db_interface.documentExist(Paths.get(usr).resolve(docname))) {
+					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
+				}
+				else {
+					SocketChannel notifyChnl = user_to_socket.getOrDefault(invited_usr, null);
+					boolean invitedOnline = notifyChnl != null;
+					if (db_interface.invite(usr, docname, invited_usr, !invitedOnline) && invitedOnline) {
+						// notify invitation on notifyChnl
+						IOUtils.writeOpKind(OpKind.OP_INVITE, notifyChnl);
+						IOUtils.writeString(docname, notifyChnl);
+					}
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+				}
+			}
+			break;
+			case OP_LISTDOCS: {
+				IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+				Collection<String> documents = db_interface.userModificableDocuments(usr);
+				IOUtils.writeInt(documents.size(), chnl);
+				for(String doc : documents) {
+					IOUtils.writeString(doc, chnl);
+				}
+			}
+			break;
 			default:
 				log("Requested unknown operation: " + op.toString());
 				IOUtils.writeOpKind(OpKind.ERR_UNKNOWN_OP, chnl);

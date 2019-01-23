@@ -210,7 +210,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 
 			Section sec = new Section(usr1, doc1, sez1);
 			try (
-				FileChannel prova_sez = db_interface.editSection(usr1, sec);
+				FileChannel prova_sez = FileChannel.open(db_interface.editSection(usr1, sec), StandardOpenOption.READ);
 			) {
 				log(usr1 + " is editing " + sec.getDebugRepr());
 				log("================ content ================");
@@ -227,9 +227,8 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			log("Created user " + usr2);
 
 			// No permission
-			try (
-				FileChannel prova_sez = db_interface.editSection(usr2, sec);
-			) {
+			try {
+				Path prova_sez = db_interface.editSection(usr2, sec);
 				log("ERROR: " + usr2 + " got editing of " + sec.getDebugRepr() + " but shouldn't have permission");
 			}
 			catch (SectionBusyException e) {
@@ -243,9 +242,8 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			log("Invited " + usr2 + " to " + usr1 + "/" + doc1);
 
 			// Busy
-			try (
-				FileChannel prova_sez = db_interface.editSection(usr2, sec);
-			){
+			try {
+				Path prova_sez = db_interface.editSection(usr2, sec);
 				log("ERROR: " + usr2 + " got editing of " + sec.getDebugRepr() + " but should busy");
 			}
 			catch (SectionBusyException e) {
@@ -263,9 +261,8 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			}
 
 			// Success
-			try (
-				FileChannel prova_sez = db_interface.editSection(usr2, sec);
-			) {
+			try {
+				Path prova_sez = db_interface.editSection(usr2, sec);
 				log(usr2 + " got editing of " + sec.getDebugRepr());
 			}
 			catch (SectionBusyException e) {

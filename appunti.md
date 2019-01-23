@@ -75,9 +75,30 @@ d'errore.
     già connesso fallisce. Può rispondere `ERR_UNLOGGED`, `ERR_INVALID_LOGIN`,
     `ERR_USERNAME_BUSY`, `ERR_ALREADY_LOGGED`
 - `OP_CREATE`(string, int) i parametri sono il nome del documento e il numero di
-    sezioni.
+    sezioni. Può rispondere `ERR_DOCUMENT_EXISTS`.
 - `OP_EDIT`(string, int) i parametri sono il nome completo del documento
-    (ie: owner/name) e il numero della sessione
+    (ie: owner/name) e il numero della sessione. Può rispondere
+    `ERR_NO_DOCUMENT`, `ERR_PERMISSION`, `ERR_NO_SECTION`, `ERR_SECTION_BUSY`,
+    `ERR_USER_BUSY`. In caso di successo, dopo `RESP_OK` invia il file della
+    sezione.
+- `OP_ENDEDIT`(file) comunica solo il file perché l'utente e l'edit corrente
+    sono già noti al server. Può rispondere `ERR_USER_FREE`.
+- `OP_SHOWSEC`(string, int) i parametri sono il nome completo del documento e
+    il numero della sessione. Può rispondere `ERR_NO_DOCUMENT`,
+    `ERR_NO_SECTION`. In caso di successo, dopo `RESP_OK` invia un booleano che
+    indica se la sezione sta venendo modificata, poi il file della sezione.
+- `OP_SHOWDOC`(string) il parametro è il nome completo del documento. Può
+    rispondere `ERR_NO_DOCUMENT`. In caso di successo, dopo `RESP_OK` invia
+    il numero di sezioni (un intero) e poi per ogni sezione invia in ordine
+    un booleano (se sta venendo editata) e il file.
+- `OP_INVITE`(string, string) i parametri sono il nome dell'utente da invitare
+    e il nome del (proprio) documento a cui invitarlo. Può rispondere
+    `ERR_NO_DOCUMENT`. Se l'utente invitato non esiste o ha già il permesso di
+    modificare il documento l'operazione ha comunque successo anche se non fa
+    nulla.
+- `OP_LISTDOCS`() senza parametri. In caso di successo, dopo `RESP_OK` invia il
+    numero di documenti (un intero) seguito dai nomi dei singoli documenti (una
+    stringa ognuno).
 
 Le possibili risposte sono:
 - `RESP_OK` operazione eseguita con successo
@@ -88,9 +109,21 @@ Le possibili risposte sono:
 - `ERR_INVALID_LOGIN` credenziali errate
 - `ERR_USERNAME_BUSY` username già connesso su un altro socket
 - `ERR_ALREADY_LOGGED` operazione di login in un socket già connesso
+- `ERR_DOCUMENT_EXISTS` documento già esistente, non si può ricreare
+- `ERR_NO_DOCUMENT` documento inesistente
+- `ERR_PERMISSION` permessi insufficienti
+- `ERR_NO_SECTION` sezione inesistente
+- `ERR_SECTION_BUSY` sezione editata da qualcun altro
+- `ERR_USER_BUSY` utente modificante un'altra sezione
+- `ERR_USER_FREE` utente senza modifiche in corso
 
-Il primo messaggio di una comunicazione deve essere di `LOGIN`, altrimenti il
-server chiude subito la connessione rispondendo con un `ERR_UNLOGGED`.
+
+Il primo messaggio su un socket deve essere di `LOGIN`, altrimenti il server
+chiude subito la connessione rispondendo con un `ERR_UNLOGGED`.
+
+Il server può inviare un solo messaggio al client, `OP_INVITE`(string) per
+notificargli un invito appena ricevuto. Il parametro è il nome del documento a
+cui è stato invitato.
 
 ### Trasferimento sezioni
 Per trasferire una sezione (ie: un file) si invia un `long` (8 byte) con la
@@ -110,7 +143,7 @@ Primo tick fatto, secondo tick testato
   - [ ] [ ] Listare i documenti editabili
 - [ ] Operazioni esportate in rete:
   - [x] [x] Registrazione
-  - [ ] [ ] Login
+  - [x] [x] Login
   - [ ] [ ] Creare un documento
   - [ ] [ ] Modificare una sezione
   - [ ] [ ] Finire la modifica

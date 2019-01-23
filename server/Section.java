@@ -33,7 +33,12 @@ public final class Section {
 	public String getDocumentName() {
 		return doc_name;
 	}
-	public String getQualifiedDocumentName() {
+	/**
+	 * Return the full document name (ie: owner/document_name) of this instance.
+	 *
+	 * @return the full document name
+	 */
+	public String getFullDocumentName() {
 		return owner + doc_name;
 	}
 

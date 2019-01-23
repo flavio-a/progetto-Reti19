@@ -127,6 +127,22 @@ public final class IOUtils {
 	}
 
 	/**
+	 * Read an int from a channel.
+	 *
+	 * @param chnl channel to read from
+	 * @return int read from the chnl
+	 */
+	public static int readInt(ReadableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
+		buff.clear();
+		while (buff.remaining() > 0) {
+			chnl.read(buff);
+		}
+		buff.flip();
+		return buff.getInt();
+	}
+
+	/**
 	 * Write an int on a channel
 	 *
 	 * @param n int to write
@@ -136,6 +152,38 @@ public final class IOUtils {
 		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
 		buff.clear();
 		buff.putInt(n);
+		buff.flip();
+		while (buff.remaining() > 0) {
+			chnl.write(buff);
+		}
+	}
+
+	/**
+	 * Read a boolean from a channel.
+	 *
+	 * @param chnl channel to read from
+	 * @return boolean read from the chnl
+	 */
+	public static boolean readBool(ReadableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(1);
+		buff.clear();
+		while (buff.remaining() > 0) {
+			chnl.read(buff);
+		}
+		buff.flip();
+		return buff.get() != 0;
+	}
+
+	/**
+	 * Write a boolean on a channel
+	 *
+	 * @param b boolean to write
+	 * @param chnl channel to write to
+	 */
+	public static void writeBool(boolean b, WritableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(1);
+		buff.clear();
+		buff.put((byte)(b ? 1 : 0));
 		buff.flip();
 		while (buff.remaining() > 0) {
 			chnl.write(buff);

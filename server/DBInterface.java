@@ -61,6 +61,17 @@ public class DBInterface {
 
 	}
 
+
+	/**
+	 * Get the absolute path of a db element.
+	 *
+	 * @param path path of the element relative to the db root directory
+	 * @return the absolute path of the given element
+	 */
+	public Path getAbsolutePath(Path path) {
+		return root.resolve(path);
+	}
+
 	// ============================== USERS ==================================
 	/**
 	 * Creates a user if it doesn't exists. Synchronized.
@@ -86,6 +97,16 @@ public class DBInterface {
 		finally {
 			fs_rwlock.writeLock().unlock();
 		}
+	}
+
+	/**
+	 * Check if a user exist. Not synchronized.
+	 *
+	 * @param usr username to check
+	 * @return true iff usr exists
+	 */
+	public boolean userExists(String usr) throws IOException {
+		return root.resolve(usr).toFile().exists();
 	}
 
 	/**
@@ -115,7 +136,31 @@ public class DBInterface {
 		}
 	}
 
+	/**
+	 * Get the documents that a certain user can modify.
+	 *
+	 * @param usr the username
+	 * @return a collection of full document names
+	 */
+	public Collection<String> userModificableDocuments(String usr) throws IOException {
+		Path docslist = root.resolve(usr).resolve(permissions_file);
+		FileLineReader reader = new FileLineReader(docslist);
+		Collection<String> lines = new ArrayList<>();
+		reader.iterator().forEachRemaining(lines::add);
+		return lines;
+	}
+
 	// ============================ DOCUMENTS ================================
+	/**
+	 * Check if a document exist. Not synchronized.
+	 *
+	 * @param doc_path full path (ie: owner/docname) to the document
+	 * @return true iff the document exits
+	 */
+	public boolean documentExist(Path doc_path) {
+		return root.resolve(doc_path).toFile().exists();
+	}
+
 	/**
 	 * Creates a document if it doesn't exists. Synchronized. Assumes that the
 	 * given username exists (if not, IOException)
@@ -158,8 +203,10 @@ public class DBInterface {
 	 * @param doc name of the document
 	 * @param usr_invited user invited to collaborate on doc
 	 * @param pending specifies whether this invitation is pending or not
+	 * @return true iff the user was actually invited (ie: didn't have
+	 *         permission on the file before this operation)
 	 */
-	public void invite(String owner, String doc, String usr_invited, boolean pending) throws IOException {
+	public boolean invite(String owner, String doc, String usr_invited, boolean pending) throws IOException {
 		Path doc_editors = root.resolve(owner).resolve(doc).resolve(editors_file);
 		Path usr_folder = root.resolve(usr_invited);
 		try {
@@ -170,6 +217,10 @@ public class DBInterface {
 				if (pending) {
 					IOUtils.addRow(usr_folder.resolve(invitations_file), owner + "/" + doc);
 				}
+				return true;
+			}
+			else {
+				return false;
 			}
 		}
 		finally {
@@ -179,8 +230,20 @@ public class DBInterface {
 
 	// ============================= SECTIONS ================================
 	/**
-	 * Get the number of sections of the passed document.
+	 * Check if a section exist. If the document itself doesn't exits it returns
+	 * false. Not synchronized.
 	 *
+	 * @param sec section to check
+	 * @return true if the document and the section exists, false otherwise
+	 */
+	public boolean sectionExist(Section sec) {
+		return this.documentExist(sec.getDocumentPath())
+				&& root.resolve(sec.getFullPath()).toFile().exists();
+	}
+
+	/**
+	 * Get the number of sections of the passed document.
+	 * <p>
 	 * TODO: synchronization? It may happen that this function is called during
 	 * the creation of the document. In this case there may be problems? Not
 	 * fatal problems, the worst is an internal server error, try again in a
@@ -188,7 +251,7 @@ public class DBInterface {
 	 * Instead acquiring the fs_rwlock.readLock() may cause deadlock because
 	 * this function is called within an edit_rwlock-locked section.
 	 *
-	 * @param name the path to the doc
+	 * @param doc the path to the doc
 	 * @return the number of sections of that document
 	 */
 	public int sectionNumber(Path doc) throws IOException {
@@ -203,6 +266,19 @@ public class DBInterface {
 						))
 					.max().getAsInt();
 		}
+	}
+
+	/**
+	 * Get if a section is being modified.
+	 * <p>
+	 * There's no check on the existance of the section. If it doesn't, returns
+	 * false.
+	 *
+	 * @param sec the section to check
+	 * @return true iff the section exists and is currently being modified
+	 */
+	public boolean isBeingModified(Section sec) {
+		return beingEdited.getOrDefault(sec, false);
 	}
 
 	/**
@@ -224,29 +300,33 @@ public class DBInterface {
 	}
 
 	/**
-	 * Start the edit of a section. Assumes the document exists (otherwise
-	 * IOException), but check that usr has permission on the document, that no
-	 * one else is editing the section and that the user isn't editing
-	 * something else at the same time.
+	 * Start the edit of a section. Check that the document exists, usr has
+	 * permission on the document, that noone else is editing the section and
+	 * that the user isn't editing something else at the same time.
 	 *
 	 * @param usr the username of the user requesting the edit
 	 * @param sec section to edit
-	 * @return a FileChannel to the required section
+	 * @return Path of the required section
+	 * @throws NoSuchDocumentException if the given document doesn't exists
 	 * @throws NoPermissionException if the user doesn't have permission
 	 * @throws NoSuchSectionException if the given section doesn't exists
 	 * @throws SectionBusyException if the section is being edited
 	 * @throws UserBusyException if the user is editing something else
 	 * @throws IOException if document doesn't exist or if an IO error occurs
 	 */
-	public FileChannel editSection(String usr, Section sec) throws IOException, NoPermissionException, NoSuchSectionException, SectionBusyException, UserBusyException {
+	public Path editSection(String usr, Section sec) throws IOException, NoSuchDocumentException, NoPermissionException, NoSuchSectionException, SectionBusyException, UserBusyException {
 		// Those are here because sec_path is needed after
 		Path doc_path = root.resolve(sec.getDocumentPath());
 		Path sec_path = doc_path.resolve(sec.getSectionPath());
 		try {
 			fs_rwlock.readLock().lock();
+			// Check document existance
+			if (!this.documentExist(doc_path)) {
+				throw new NoSuchDocumentException(sec.getFullDocumentName());
+			}
 			// Check permissions
 			if (!IOUtils.searchRow(doc_path.resolve(editors_file), usr, 0)) {
-				throw new NoPermissionException(usr, sec.getQualifiedDocumentName());
+				throw new NoPermissionException(usr, sec.getFullDocumentName());
 			}
 			// Check existence
 			if (!sec_path.toFile().exists()) {
@@ -269,7 +349,7 @@ public class DBInterface {
 			// Give edit to the user
 			isEditing.put(usr, sec);
 			beingEdited.put(sec, true);
-			return FileChannel.open(sec_path, StandardOpenOption.READ);
+			return sec_path;
 			// Now the writeLock can be released because only the user can
 			// modify the section file, then no need for synchronization
 		}
@@ -283,7 +363,7 @@ public class DBInterface {
 	 * NoSuchSectionException.
 	 *
 	 * @param usr the username of the user ending the edit
-	 * @param newContent a Channel to the new contet of the
+	 * @param newContent a Channel to the new content of the section
 	 * @throws UserFreeException if the user isn't editing anything
 	 * @throws IOException if document doesn't exist or if an IO error occurs
 	 */
