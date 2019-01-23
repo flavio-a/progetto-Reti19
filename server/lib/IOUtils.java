@@ -50,40 +50,6 @@ public final class IOUtils {
 	}
 
 	/**
-	 * Remove all row equals to a given text from a file. Not synchronized.
-	 *
-	 * @param f path to the file relative to root
-	 * @param text the line to remove. Comparisions are as in searchRow
-	 * @param skip number of lines at the begining of the file to skip
-	 *
-	 * TODO: replace writer with nio
-	 */
-	public static void deleteRows(Path f, String text, int skip) throws IOException {
-		final String trim_text = text.trim();
-		// Implementation: the file is read line by line and lines not matching
-		// are written to a temporary file. At the end, the temporary file is
-		// moved to replace the original one
-		Path tmp_file = f.getParent().resolve(f.getFileName().toString() + "_tmp");
-		try (
-			BufferedWriter writer = Files.newBufferedWriter(tmp_file);
-			FileLineReader reader = new FileLineReader(f);
-		) {
-			int i = 0;
-			for (String line : reader) {
-				if (i < skip || !trim_text.equals(line.trim())) {
-					writer.write(line + System.getProperty("line.separator"));
-				}
-				++i;
-			}
-		}
-		catch (IOException e) {
-			Files.delete(tmp_file);
-			throw e;
-		}
-		Files.move(tmp_file, f, StandardCopyOption.REPLACE_EXISTING);
-	}
-
-	/**
 	 * Creates a file with the specified content.
 	 *
 	 * @param f path to file to create

@@ -2,7 +2,9 @@ package server.lib;
 
 import java.rmi.*;
 
-// Interface for RMI registration to a TURING server
+/**
+ * Interface for RMI registration to a TURING server
+ */
 public interface RegistrationInterface extends Remote {
 	/**
 	 * Register a new user, if the username is not in use.

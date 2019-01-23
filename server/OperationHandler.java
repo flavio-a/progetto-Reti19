@@ -9,7 +9,12 @@ import java.nio.file.*;
 import java.nio.channels.*;
 import server.lib.*;
 
-public class ConnectionHandler implements Runnable {
+/**
+ * Task of TURING server to handle a single operation on a connection.
+ * <p>
+ *
+ */
+public class OperationHandler implements Runnable {
 	private final SocketChannel chnl;
 	private final DBInterface db_interface;
 	private final BlockingQueue<SocketChannel> freesc;
@@ -17,7 +22,7 @@ public class ConnectionHandler implements Runnable {
 	private final Map<String, SocketChannel> user_to_socket;
 	private final Selector selector;
 
-	public ConnectionHandler(SocketChannel chnl_set, DBInterface db_interface_set, BlockingQueue<SocketChannel> freesc_set, Map<SocketChannel, String> socket_to_user_set, Map<String, SocketChannel> user_to_socket_set, Selector selector_set) {
+	public OperationHandler(SocketChannel chnl_set, DBInterface db_interface_set, BlockingQueue<SocketChannel> freesc_set, Map<SocketChannel, String> socket_to_user_set, Map<String, SocketChannel> user_to_socket_set, Selector selector_set) {
 		chnl = chnl_set;
 		db_interface = db_interface_set;
 		freesc = freesc_set;
@@ -47,7 +52,7 @@ public class ConnectionHandler implements Runnable {
 	 * @return whether this instance's SocketChannel should be returned to the
 	 *         listener (true) or not (false).
 	 */
-	private boolean handleConnection() throws IOException {
+	private boolean handleOperation() throws IOException {
 		chnl.configureBlocking(true);
 		OpKind op = IOUtils.readOpKind(chnl);
 		String usr = socket_to_user.get(chnl);
@@ -214,10 +219,10 @@ public class ConnectionHandler implements Runnable {
 	public void run() {
 		boolean shouldReturn;
 		try {
-			shouldReturn = this.handleConnection();
+			shouldReturn = this.handleOperation();
 		}
 		catch (IOException e) {
-			log("Exception handling connection: " + e.getMessage());
+			log("Exception handling operation: " + e.getMessage());
 			shouldReturn = false;
 		}
 		if (shouldReturn) {

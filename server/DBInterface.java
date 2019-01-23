@@ -242,14 +242,12 @@ public class DBInterface {
 	}
 
 	/**
-	 * Get the number of sections of the passed document.
+	 * Get the number of sections of the passed document. Not synchronized.
 	 * <p>
-	 * TODO: synchronization? It may happen that this function is called during
-	 * the creation of the document. In this case there may be problems? Not
-	 * fatal problems, the worst is an internal server error, try again in a
-	 * few moment for the user.
-	 * Instead acquiring the fs_rwlock.readLock() may cause deadlock because
-	 * this function is called within an edit_rwlock-locked section.
+	 * This function is not synchronized for two reasons: first and most
+	 * important is never used in a context in which the number of section may
+	 * change. Second even if it would do the worst thing that may happen is an
+	 * IOException, that the server will report as "ERR_RETRY".
 	 *
 	 * @param doc the path to the doc
 	 * @return the number of sections of that document
@@ -279,24 +277,6 @@ public class DBInterface {
 	 */
 	public boolean isBeingModified(Section sec) {
 		return beingEdited.getOrDefault(sec, false);
-	}
-
-	/**
-	 * Get the size of the section file being modified by this user. Not
-	 * synchronized.
-	 *
-	 * @param usr the user
-	 * @return the size of the section this user is modifying, or -1 if they
-	 *         aren't modifying anything
-	 */
-	public long modifiedSectionSize(String usr) throws IOException {
-		Section sec = isEditing.getOrDefault(usr, null);
-		if (sec == null) {
-			return -1;
-		}
-		else {
-			return Files.size(root.resolve(sec.getFullPath()));
-		}
 	}
 
 	/**

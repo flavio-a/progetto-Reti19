@@ -21,7 +21,7 @@ processore).
 
 I parallelismi con Chatty sono i seguenti:
 - listener = main thread (TURINGServer)
-- workers = ConnectionHandler nella threadpool
+- workers = OperationHandler nella threadpool
 - fd = SocketChannel
 - coda condivisa queue = coda interna della threadpool
 - something to send SocketChannel (fd) back to the main thread (listener)

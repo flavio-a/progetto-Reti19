@@ -110,13 +110,13 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	}
 
 	/**
-	 * Utility function to spawn a ConnectionHandler. Here just because of the
+	 * Utility function to spawn an OperationHandler. Here just because of the
 	 * number of parameters.
 	 *
-	 * @param chnl channel of the connection to be handled
+	 * @param chnl channel with an operation to be handled
 	 */
-	private void spawnConnectionHandler(SocketChannel chnl) {
-		threadpool.execute(new ConnectionHandler(chnl, db_interface, freesc, socket_to_user, user_to_socket, selector));
+	private void spawnOperationHandler(SocketChannel chnl) {
+		threadpool.execute(new OperationHandler(chnl, db_interface, freesc, socket_to_user, user_to_socket, selector));
 	}
 
 	/**
@@ -140,12 +140,12 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 					if (key.isReadable()) {
 						// Remove this SocketChannel from the selector
 						key.cancel();
-						spawnConnectionHandler((SocketChannel)key.channel());
+						spawnOperationHandler((SocketChannel)key.channel());
 					}
 					else if (key.isAcceptable()) {
 						SocketChannel chnl = ((ServerSocketChannel)key.channel()).accept();
 						log("Accepted connection by " + chnl.toString());
-						spawnConnectionHandler(chnl);
+						spawnOperationHandler(chnl);
 					}
 				}
 				selector.selectedKeys().clear();

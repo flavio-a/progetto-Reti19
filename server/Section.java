@@ -11,12 +11,27 @@ public final class Section {
 	private String owner, doc_name;
 	private int n;
 
+	/**
+	 * Create a section from the name of the owner, of the document and the
+	 * number of section.
+	 *
+	 * @param owner_set name of the owner
+	 * @param doc_name_set name of the document
+	 * @param n_set number of section
+	 */
 	public Section(String owner_set, String doc_name_set, int n_set) {
 		owner = owner_set.trim();
 		doc_name = doc_name_set.trim();
 		n = n_set;
 	}
 
+	/**
+	 * Create a section from the full name of the document (ie: owner/name) and
+	 * the number of section.
+	 *
+	 * @param full_doc_name full name of the document
+	 * @param n_set number of section
+	 */
 	public Section(String full_doc_name, int n_set) {
 		int idx_slash = full_doc_name.indexOf('/');
 		owner = full_doc_name.substring(0, idx_slash);
@@ -24,6 +39,11 @@ public final class Section {
 		n = n_set;
 	}
 
+	/**
+	 * Get the number of this section.
+	 *
+	 * @return the number of this section
+	 */
 	public int getN() {
 		return n;
 	}
@@ -42,12 +62,28 @@ public final class Section {
 		return owner + doc_name;
 	}
 
+	/**
+	 * Get the path to this section's document (relative to the db root
+	 * directory)
+	 *
+	 * @return the path to this section's document
+	 */
 	public Path getDocumentPath() {
 		return Paths.get(owner).resolve(doc_name);
 	}
+	/**
+	 * Get the path of this section relative to its document's directory.
+	 *
+	 * @return this section's path
+	 */
 	public Path getSectionPath() {
 		return Paths.get(DBInterface.section_file_prefix + Integer.toString(n));
 	}
+	/**
+	 * Get this section's full path (relative to the db root directory).
+	 *
+	 * @return this section's full path
+	 */
 	public Path getFullPath() {
 		return getDocumentPath().resolve(getSectionPath());
 	}
