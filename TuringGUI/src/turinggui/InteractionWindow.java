@@ -66,8 +66,11 @@ public class InteractionWindow extends javax.swing.JFrame {
         inviteUsrTb = new javax.swing.JTextField();
         inviteDocumentTb = new javax.swing.JTextField();
         inviteBtn = new javax.swing.JButton();
+        showSecBtn = new javax.swing.JButton();
+        showDocBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setMinimumSize(new java.awt.Dimension(600, 400));
 
         showUsrTextbox.setEditable(false);
         showUsrTextbox.setToolTipText("");
@@ -150,6 +153,20 @@ public class InteractionWindow extends javax.swing.JFrame {
             }
         });
 
+        showSecBtn.setText("Show section");
+        showSecBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                showSecBtnActionPerformed(evt);
+            }
+        });
+
+        showDocBtn.setText("Show document");
+        showDocBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                showDocBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout docsInteractionPanelLayout = new javax.swing.GroupLayout(docsInteractionPanel);
         docsInteractionPanel.setLayout(docsInteractionPanelLayout);
         docsInteractionPanelLayout.setHorizontalGroup(
@@ -160,9 +177,17 @@ public class InteractionWindow extends javax.swing.JFrame {
                 .addComponent(newDocSecNumSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(createDocBtn))
+            .addComponent(listDocBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(docsInteractionPanelLayout.createSequentialGroup()
+                .addComponent(inviteUsrTb, javax.swing.GroupLayout.PREFERRED_SIZE, 118, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(inviteDocumentTb)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(inviteBtn)
+                .addContainerGap())
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, docsInteractionPanelLayout.createSequentialGroup()
                 .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(editDocNameTb, javax.swing.GroupLayout.DEFAULT_SIZE, 213, Short.MAX_VALUE)
+                    .addComponent(editDocNameTb, javax.swing.GroupLayout.DEFAULT_SIZE, 231, Short.MAX_VALUE)
                     .addGroup(docsInteractionPanelLayout.createSequentialGroup()
                         .addComponent(jLabel3)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -174,14 +199,11 @@ public class InteractionWindow extends javax.swing.JFrame {
                         .addComponent(editSecNumSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(editBtn))))
-            .addComponent(listDocBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
             .addGroup(docsInteractionPanelLayout.createSequentialGroup()
-                .addComponent(inviteUsrTb, javax.swing.GroupLayout.PREFERRED_SIZE, 118, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addComponent(showSecBtn)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(inviteDocumentTb)
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                .addComponent(inviteBtn)
-                .addContainerGap())
+                .addComponent(showDocBtn)
+                .addGap(0, 0, Short.MAX_VALUE))
         );
         docsInteractionPanelLayout.setVerticalGroup(
             docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -203,7 +225,11 @@ public class InteractionWindow extends javax.swing.JFrame {
                     .addComponent(endEditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(editingTb))
-                .addGap(148, 148, 148)
+                .addGap(18, 18, 18)
+                .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(showSecBtn)
+                    .addComponent(showDocBtn))
+                .addGap(108, 108, 108)
                 .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(inviteUsrTb, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(inviteDocumentTb, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
@@ -227,8 +253,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(jLabel1)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
-                        .addComponent(showUsrTextbox)))
-                .addContainerGap())
+                        .addComponent(showUsrTextbox))))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -399,6 +424,95 @@ public class InteractionWindow extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_inviteBtnActionPerformed
 
+    private void showSecBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showSecBtnActionPerformed
+        String docname = editDocNameTb.getText();
+        int secnum = (Integer)editSecNumSpinner.getValue();
+        if (!docname.equals("")) {
+            try {
+                IOUtils.writeOpKind(OpKind.OP_SHOWSEC, chnl);
+                IOUtils.writeString(docname, chnl);
+                IOUtils.writeInt(secnum, chnl);
+                OpKind resp = getNonInviteOpKind();
+                switch (resp) {
+                    case RESP_OK:
+                        Path file = this.ChooseFile();
+                        if (IOUtils.readBool(chnl)) {
+                            UserLog("This section is being edited right now");
+                        }
+                        IOUtils.channelToFile(chnl, file);
+                        this.UserLog("Section saved to " + file.toString());
+                        break;
+                    case ERR_WRONG_DOCNAME:
+                        this.UserLog("Can't show section: wrong document name", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_NO_DOCUMENT:
+                        this.UserLog("Can't edit section: document doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_NO_SECTION:
+                        this.UserLog("Can't show section: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_RETRY:
+                        throw new IOException();
+                    default:
+                        this.UserLog("Unknown error", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                }
+            } catch (IOException ex) {
+                this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (ChannelClosedException ex) {
+                this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+        else {
+            this.UserLog("Can't get a section of a document without a name", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_showSecBtnActionPerformed
+
+    private void showDocBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showDocBtnActionPerformed
+        String docname = editDocNameTb.getText();
+        if (!docname.equals("")) {
+            try {
+                IOUtils.writeOpKind(OpKind.OP_SHOWDOC, chnl);
+                IOUtils.writeString(docname, chnl);
+                OpKind resp = getNonInviteOpKind();
+                switch (resp) {
+                    case RESP_OK:
+                        int nsec = IOUtils.readInt(chnl);
+                        Path file = this.ChooseFile();
+                        for (Integer i = 0; i < nsec; ++i) {
+                            if (IOUtils.readBool(chnl)) {
+                                UserLog("This section is being edited right now");
+                            }
+                            IOUtils.channelToFile(chnl, file.resolve(i.toString()));
+                        }
+                        this.UserLog("Sections saved to " + file.toString());
+                        break;
+                    case ERR_WRONG_DOCNAME:
+                        this.UserLog("Can't show section: wrong document name", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_NO_DOCUMENT:
+                        this.UserLog("Can't edit section: document doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_NO_SECTION:
+                        this.UserLog("Can't show section: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_RETRY:
+                        throw new IOException();
+                    default:
+                        this.UserLog("Unknown error", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                }
+            } catch (IOException ex) {
+                this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (ChannelClosedException ex) {
+                this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+        else {
+            this.UserLog("Can't get a document without a name", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_showDocBtnActionPerformed
+
     
     private Path ChooseFile() {
         JFileChooser fileChooser = new JFileChooser();
@@ -494,6 +608,8 @@ public class InteractionWindow extends javax.swing.JFrame {
     private javax.swing.JSpinner newDocSecNumSpinner;
     private javax.swing.JTextArea readMessagesTextarea;
     private javax.swing.JButton sendMessageButton;
+    private javax.swing.JButton showDocBtn;
+    private javax.swing.JButton showSecBtn;
     private javax.swing.JTextField showUsrTextbox;
     private javax.swing.JTextField writeMessageTextbox;
     // End of variables declaration//GEN-END:variables

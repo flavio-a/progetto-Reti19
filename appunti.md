@@ -141,7 +141,7 @@ dimensione del file in byte, seguito dai byte del file
 
 # TODO
 Primo tick fatto, secondo tick testato
-- [ ] Operazioni sul db:
+- [x] Operazioni sul db:
   - [x] [x] Registrazione
   - [x] [x] Login
   - [x] [x] Creare un documento
@@ -151,7 +151,7 @@ Primo tick fatto, secondo tick testato
   - [x] [ ] Mostrare una sezione
   - [x] [ ] Mostrare un documento
   - [x] [ ] Listare i documenti editabili
-- [ ] Operazioni esportate in rete:
+- [x] Operazioni esportate in rete:
   - [x] [x] Registrazione
   - [x] [x] Login
   - [x] [ ] Creare un documento

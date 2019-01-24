@@ -41,9 +41,9 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	private final DBInterface db_interface;
 	private final ThreadPoolExecutor threadpool;
 
-	private final BlockingQueue<SocketChannel> freesc;
-	private final ConcurrentMap<SocketChannel, String> socket_to_user;
-	private final ConcurrentMap<String, SocketChannel> user_to_socket;
+	private final BlockingQueue<ConcurrentSocketChannel> freesc;
+	private final ConcurrentMap<ConcurrentSocketChannel, String> socket_to_user;
+	private final ConcurrentMap<String, ConcurrentSocketChannel> user_to_socket;
 	private final Selector selector;
 
 	/**
@@ -63,9 +63,9 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		server_sock.socket().bind(new InetSocketAddress(server_sock_port));
 		server_sock.configureBlocking(false);
 
-		freesc = new LinkedBlockingQueue<SocketChannel>();
-		socket_to_user = new ConcurrentHashMap<SocketChannel, String>();
-		user_to_socket = new ConcurrentHashMap<String, SocketChannel>();
+		freesc = new LinkedBlockingQueue<ConcurrentSocketChannel>();
+		socket_to_user = new ConcurrentHashMap<ConcurrentSocketChannel, String>();
+		user_to_socket = new ConcurrentHashMap<String, ConcurrentSocketChannel>();
 
 		selector = Selector.open();
 		server_sock.register(selector, SelectionKey.OP_ACCEPT);
@@ -115,7 +115,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	 *
 	 * @param chnl channel with an operation to be handled
 	 */
-	private void spawnOperationHandler(SocketChannel chnl) {
+	private void spawnOperationHandler(ConcurrentSocketChannel chnl) {
 		threadpool.execute(new OperationHandler(chnl, db_interface, freesc, socket_to_user, user_to_socket, selector));
 	}
 
@@ -129,9 +129,9 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			try {
 				selector.select();
 				// Read all sc from freesc and add them back to selector
-				Collection<SocketChannel> tmp = new ArrayList<SocketChannel>(freesc.size());
+				Collection<ConcurrentSocketChannel> tmp = new ArrayList<ConcurrentSocketChannel>(freesc.size());
 				freesc.drainTo(tmp);
-				for (SocketChannel sc: tmp) {
+				for (ConcurrentSocketChannel sc: tmp) {
 					sc.configureBlocking(false);
 					sc.register(selector, SelectionKey.OP_READ);
 				}
@@ -140,10 +140,12 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 					if (key.isReadable()) {
 						// Remove this SocketChannel from the selector
 						key.cancel();
-						spawnOperationHandler((SocketChannel)key.channel());
+						spawnOperationHandler((ConcurrentSocketChannel)key.attachment());
 					}
 					else if (key.isAcceptable()) {
-						SocketChannel chnl = ((ServerSocketChannel)key.channel()).accept();
+						ConcurrentSocketChannel chnl = new ConcurrentSocketChannel(
+							((ServerSocketChannel)key.channel()).accept()
+						);
 						log("Accepted connection by " + chnl.toString());
 						spawnOperationHandler(chnl);
 					}
