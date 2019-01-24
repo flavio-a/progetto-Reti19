@@ -149,7 +149,7 @@
               </Group>
               <Group type="102" alignment="1" attributes="0">
                   <Group type="103" groupAlignment="0" attributes="0">
-                      <Component id="editDocNameTb" pref="221" max="32767" attributes="0"/>
+                      <Component id="editDocNameTb" pref="213" max="32767" attributes="0"/>
                       <Group type="102" attributes="0">
                           <Component id="jLabel3" min="-2" max="-2" attributes="0"/>
                           <EmptySpace max="-2" attributes="0"/>
@@ -167,6 +167,14 @@
                   </Group>
               </Group>
               <Component id="listDocBtn" alignment="0" max="32767" attributes="0"/>
+              <Group type="102" alignment="0" attributes="0">
+                  <Component id="inviteUsrTb" min="-2" pref="118" max="-2" attributes="0"/>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Component id="inviteDocumentTb" max="32767" attributes="0"/>
+                  <EmptySpace max="-2" attributes="0"/>
+                  <Component id="inviteBtn" min="-2" max="-2" attributes="0"/>
+                  <EmptySpace max="-2" attributes="0"/>
+              </Group>
           </Group>
         </DimensionLayout>
         <DimensionLayout dim="1">
@@ -194,7 +202,13 @@
                       <Component id="jLabel3" alignment="3" min="-2" pref="19" max="-2" attributes="0"/>
                       <Component id="editingTb" alignment="1" max="32767" attributes="0"/>
                   </Group>
-                  <EmptySpace min="-2" pref="191" max="-2" attributes="0"/>
+                  <EmptySpace min="-2" pref="148" max="-2" attributes="0"/>
+                  <Group type="103" groupAlignment="3" attributes="0">
+                      <Component id="inviteUsrTb" alignment="3" min="-2" pref="25" max="-2" attributes="0"/>
+                      <Component id="inviteDocumentTb" alignment="3" min="-2" pref="25" max="-2" attributes="0"/>
+                      <Component id="inviteBtn" alignment="3" min="-2" max="-2" attributes="0"/>
+                  </Group>
+                  <EmptySpace type="separate" max="-2" attributes="0"/>
                   <Component id="listDocBtn" min="-2" max="-2" attributes="0"/>
                   <EmptySpace max="-2" attributes="0"/>
               </Group>
@@ -252,6 +266,18 @@
           </Properties>
           <Events>
             <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="listDocBtnActionPerformed"/>
+          </Events>
+        </Component>
+        <Component class="javax.swing.JTextField" name="inviteUsrTb">
+        </Component>
+        <Component class="javax.swing.JTextField" name="inviteDocumentTb">
+        </Component>
+        <Component class="javax.swing.JButton" name="inviteBtn">
+          <Properties>
+            <Property name="text" type="java.lang.String" value="Invite"/>
+          </Properties>
+          <Events>
+            <EventHandler event="actionPerformed" listener="java.awt.event.ActionListener" parameters="java.awt.event.ActionEvent" handler="inviteBtnActionPerformed"/>
           </Events>
         </Component>
       </SubComponents>

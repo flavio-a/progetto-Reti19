@@ -181,6 +181,8 @@ public class LoginDialog extends javax.swing.JDialog {
         }
         catch (IOException e) {
             UserLog("Error connecting to the server: try again");
+        } catch (ChannelClosedException ex) {
+            UserLog("Connection to the server lost: restart the application");
         }
     }//GEN-LAST:event_loginButtonActionPerformed
 

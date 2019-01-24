@@ -7,6 +7,7 @@ package turinggui;
 
 import java.io.*;
 import java.net.*;
+import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.file.*;
 import javax.swing.*;
@@ -62,6 +63,9 @@ public class InteractionWindow extends javax.swing.JFrame {
         jLabel3 = new javax.swing.JLabel();
         editingTb = new javax.swing.JTextField();
         listDocBtn = new javax.swing.JButton();
+        inviteUsrTb = new javax.swing.JTextField();
+        inviteDocumentTb = new javax.swing.JTextField();
+        inviteBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -139,6 +143,13 @@ public class InteractionWindow extends javax.swing.JFrame {
             }
         });
 
+        inviteBtn.setText("Invite");
+        inviteBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                inviteBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout docsInteractionPanelLayout = new javax.swing.GroupLayout(docsInteractionPanel);
         docsInteractionPanel.setLayout(docsInteractionPanelLayout);
         docsInteractionPanelLayout.setHorizontalGroup(
@@ -151,7 +162,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 .addComponent(createDocBtn))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, docsInteractionPanelLayout.createSequentialGroup()
                 .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(editDocNameTb, javax.swing.GroupLayout.DEFAULT_SIZE, 221, Short.MAX_VALUE)
+                    .addComponent(editDocNameTb, javax.swing.GroupLayout.DEFAULT_SIZE, 213, Short.MAX_VALUE)
                     .addGroup(docsInteractionPanelLayout.createSequentialGroup()
                         .addComponent(jLabel3)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -164,6 +175,13 @@ public class InteractionWindow extends javax.swing.JFrame {
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(editBtn))))
             .addComponent(listDocBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+            .addGroup(docsInteractionPanelLayout.createSequentialGroup()
+                .addComponent(inviteUsrTb, javax.swing.GroupLayout.PREFERRED_SIZE, 118, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(inviteDocumentTb)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(inviteBtn)
+                .addContainerGap())
         );
         docsInteractionPanelLayout.setVerticalGroup(
             docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -185,7 +203,12 @@ public class InteractionWindow extends javax.swing.JFrame {
                     .addComponent(endEditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(editingTb))
-                .addGap(191, 191, 191)
+                .addGap(148, 148, 148)
+                .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(inviteUsrTb, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(inviteDocumentTb, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(inviteBtn))
+                .addGap(18, 18, 18)
                 .addComponent(listDocBtn)
                 .addContainerGap())
         );
@@ -233,7 +256,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                     IOUtils.writeOpKind(OpKind.OP_CREATE, chnl);
                     IOUtils.writeString(docname, chnl);
                     IOUtils.writeInt(secnum, chnl);
-                    OpKind resp = IOUtils.readOpKind(chnl);
+                    OpKind resp = getNonInviteOpKind();
                     switch (resp) {
                         case RESP_OK:
                             this.UserLog("Document created succesfully");
@@ -270,7 +293,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 IOUtils.writeOpKind(OpKind.OP_EDIT, chnl);
                 IOUtils.writeString(docname, chnl);
                 IOUtils.writeInt(secnum, chnl);
-                OpKind resp = IOUtils.readOpKind(chnl);
+                OpKind resp = getNonInviteOpKind();
                 switch (resp) {
                     case RESP_OK:
                         Path file = this.ChooseFile();
@@ -302,7 +325,7 @@ public class InteractionWindow extends javax.swing.JFrame {
     private void endEditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_endEditBtnActionPerformed
         try {
             IOUtils.writeOpKind(OpKind.OP_ENDEDIT, chnl);
-            OpKind resp = IOUtils.readOpKind(chnl);
+            OpKind resp = getNonInviteOpKind();
             switch (resp) {
                 case RESP_OK:
                     Path file = this.ChooseFile();
@@ -329,7 +352,7 @@ public class InteractionWindow extends javax.swing.JFrame {
     private void listDocBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_listDocBtnActionPerformed
         try {
             IOUtils.writeOpKind(OpKind.OP_LISTDOCS, chnl);
-            OpKind resp = IOUtils.readOpKind(chnl);
+            OpKind resp = getNonInviteOpKind();
             switch (resp) {
                 case RESP_OK:
                     int ndocs = IOUtils.readInt(chnl);
@@ -353,6 +376,29 @@ public class InteractionWindow extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_listDocBtnActionPerformed
 
+    private void inviteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_inviteBtnActionPerformed
+        try {
+            IOUtils.writeOpKind(OpKind.OP_INVITE, chnl);
+            IOUtils.writeString(inviteUsrTb.getText(), chnl);
+            IOUtils.writeString(inviteDocumentTb.getText(), chnl);
+            OpKind resp = getNonInviteOpKind();
+            switch (resp) {
+                case RESP_OK:
+                    this.UserLog("User invited succesfully");
+                    break;
+                case ERR_RETRY:
+                    throw new IOException();
+                default:
+                    this.UserLog("Unknown error", "Error", JOptionPane.ERROR_MESSAGE);
+                    break;
+            }
+        } catch (IOException ex) {
+            this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (ChannelClosedException ex) {
+            this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_inviteBtnActionPerformed
+
     
     private Path ChooseFile() {
         JFileChooser fileChooser = new JFileChooser();
@@ -362,6 +408,18 @@ public class InteractionWindow extends javax.swing.JFrame {
         }
         else {
             return null;
+        }
+    }
+
+    private OpKind getNonInviteOpKind() throws IOException, ChannelClosedException {
+        OpKind resp = IOUtils.readOpKind(chnl);
+        if (resp == OpKind.OP_INVITE) {
+            String docInvited = IOUtils.readString((chnl));
+            UserLog("You have been invited to edit " + docInvited, "Invite", JOptionPane.INFORMATION_MESSAGE);
+            return getNonInviteOpKind();
+        }
+        else {
+            return resp;
         }
     }
     
@@ -424,6 +482,9 @@ public class InteractionWindow extends javax.swing.JFrame {
     private javax.swing.JSpinner editSecNumSpinner;
     private javax.swing.JTextField editingTb;
     private javax.swing.JButton endEditBtn;
+    private javax.swing.JButton inviteBtn;
+    private javax.swing.JTextField inviteDocumentTb;
+    private javax.swing.JTextField inviteUsrTb;
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;

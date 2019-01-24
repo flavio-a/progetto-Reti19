@@ -56,6 +56,12 @@ avviene solo durante la registrazione; la cancellazione invece non avviene mai.
 Per il login il server controlla l'esistenza del file `DB_ROOT/usr/user_info` e
 a correttezza della password (che deve essere uguale al contenuto del file).
 
+## Inviti
+Dato che gli inviti possono essere inviati ad un client da un thread che sta
+servendo un altro client, il server si assicura che un solo server alla volta
+scriva su ogni SocketChannel, in modo da garantire che due comunicazioni non si
+inframezzino, rendendole entrambe illeggibili.
+
 ## Protocolli di comunicazione
 ### Messagi TCP
 Il client invia messaggi al server tramite TCP. I messaggi iniziano con 1 byte,
