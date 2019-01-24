@@ -41,8 +41,6 @@ public final class Section {
 		}
 		owner = full_doc_name.substring(0, idx_slash);
 		doc_name = full_doc_name.substring(idx_slash + 1);
-		System.out.println(owner);
-		System.out.println(doc_name);
 		n = n_set;
 	}
 

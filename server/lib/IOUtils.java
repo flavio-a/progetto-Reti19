@@ -65,12 +65,16 @@ public final class IOUtils {
 	 *
 	 * @param chnl channel to read from
 	 * @return OpKind read from the chnl
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
 	 */
-	public static OpKind readOpKind(ReadableByteChannel chnl) throws IOException {
+	public static OpKind readOpKind(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
 		ByteBuffer buff = ByteBuffer.allocate(1);
 		buff.clear();
 		while (buff.remaining() > 0) {
-			chnl.read(buff);
+			if (chnl.read(buff) == -1) {
+				throw new ChannelClosedException();
+			}
 		}
 		buff.flip();
 		return OpKind.getOp(buff.get());
@@ -97,12 +101,16 @@ public final class IOUtils {
 	 *
 	 * @param chnl channel to read from
 	 * @return int read from the chnl
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
 	 */
-	public static int readInt(ReadableByteChannel chnl) throws IOException {
+	public static int readInt(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
 		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
 		buff.clear();
 		while (buff.remaining() > 0) {
-			chnl.read(buff);
+			if (chnl.read(buff) == -1) {
+				throw new ChannelClosedException();
+			}
 		}
 		buff.flip();
 		return buff.getInt();
@@ -129,12 +137,16 @@ public final class IOUtils {
 	 *
 	 * @param chnl channel to read from
 	 * @return boolean read from the chnl
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
 	 */
-	public static boolean readBool(ReadableByteChannel chnl) throws IOException {
+	public static boolean readBool(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
 		ByteBuffer buff = ByteBuffer.allocate(1);
 		buff.clear();
 		while (buff.remaining() > 0) {
-			chnl.read(buff);
+			if (chnl.read(buff) == -1) {
+				throw new ChannelClosedException();
+			}
 		}
 		buff.flip();
 		return buff.get() != 0;
@@ -162,14 +174,18 @@ public final class IOUtils {
 	 *
 	 * @param chnl channel to read from
 	 * @return string read
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
 	 */
-	public static String readString(ReadableByteChannel chnl) throws IOException {
+	public static String readString(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
 		ByteBuffer buff = ByteBuffer.allocate(20);
 		buff.clear();
 		// Read an int
 		buff.limit(Integer.BYTES);
 		while (buff.remaining() > 0) {
-			chnl.read(buff);
+			if (chnl.read(buff) == -1) {
+				throw new ChannelClosedException();
+			}
 		}
 		buff.flip();
 		int len = buff.getInt();

@@ -157,7 +157,7 @@ public class DBInterface {
 	 * @return the section being modified by usr or null if they aren't
 	 *         modifying anything
 	 */
-	public Section userIsModifying(String usr) throws IOException {
+	public Section userIsModifying(String usr) {
  		try {
  			edit_rwlock.readLock().lock();
  			return isEditing.getOrDefault(usr, null);
@@ -170,13 +170,6 @@ public class DBInterface {
 	// ============================ DOCUMENTS ================================
 	/**
 	 * Check if a document exist. Not synchronized.
-	 *
-	 * @param doc_path full path (ie: owner/docname) to the document
-	 * @return true iff the document exits
-	 */
-
-	/**
-	 * Check if a document exists.
 	 *
 	 * @param doc_path path of the document relative to the db root directory
 	 * @return true iff the document exist
@@ -300,7 +293,13 @@ public class DBInterface {
 	 * @return true iff the section exists and is currently being modified
 	 */
 	public boolean isBeingModified(Section sec) {
-		return beingEdited.getOrDefault(sec, false);
+		try {
+			edit_rwlock.readLock().lock();
+			return beingEdited.getOrDefault(sec, false);
+		}
+		finally {
+			edit_rwlock.readLock().unlock();
+		}
 	}
 
 	/**
@@ -380,11 +379,35 @@ public class DBInterface {
 		// Release edit lock on the section
 		try {
 			edit_rwlock.writeLock().lock();
-			isEditing.put(usr, null);
-			beingEdited.put(sec, false);
+			isEditing.remove(usr);
+			beingEdited.remove(sec);
 		}
 		finally {
 			edit_rwlock.writeLock().unlock();
+		}
+	}
+
+	/**
+	 * Terminate (without saving) any edit a user is doing.
+	 * <p>
+	 * This function is primarly used in case of abrupt disconnection of a
+	 * client to free the section it (possibly) was editing.
+	 * <p>
+	 * If the user wasn't editing anything, this function doesn't do anything.
+	 *
+	 * @param usr the username of the user ending the edit
+	 */
+	public void cleanUserEdit(String usr) {
+		Section sec = this.userIsModifying(usr);
+		if (sec != null) {
+			try {
+				edit_rwlock.writeLock().lock();
+				isEditing.remove(usr);
+				beingEdited.remove(sec);
+			}
+			finally {
+				edit_rwlock.writeLock().unlock();
+			}
 		}
 	}
 }

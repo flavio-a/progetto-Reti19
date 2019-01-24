@@ -24,6 +24,9 @@ public class OperationHandler implements Runnable {
 	private final String usr;
 
 	public OperationHandler(SocketChannel chnl_set, DBInterface db_interface_set, BlockingQueue<SocketChannel> freesc_set, Map<SocketChannel, String> socket_to_user_set, Map<String, SocketChannel> user_to_socket_set, Selector selector_set) {
+		if (chnl_set == null) {
+			throw new NullPointerException();
+		}
 		chnl = chnl_set;
 		db_interface = db_interface_set;
 		freesc = freesc_set;
@@ -53,8 +56,10 @@ public class OperationHandler implements Runnable {
 	 *
 	 * @return whether this instance's SocketChannel should be returned to the
 	 *         listener (true) or not (false).
+	 * @throws ChannelClosedException if the channel is closed by the other end
+	 *                                during the communication
 	 */
-	private boolean handleOperation() throws IOException {
+	private boolean handleOperation() throws IOException, ChannelClosedException {
 		chnl.configureBlocking(true);
 		OpKind op = IOUtils.readOpKind(chnl);
 		if (usr == null) {
@@ -250,11 +255,22 @@ public class OperationHandler implements Runnable {
 			log("Exception handling operation: " + e.getMessage());
 			shouldReturn = false;
 		}
+		catch (ChannelClosedException e) {
+			log("Channel closed by the other end");
+			shouldReturn = false;
+		}
 		if (shouldReturn) {
 			freesc.add(chnl);
 			selector.wakeup();
 		}
 		else {
+			// Disconnect the channel and frees the user again
+			socket_to_user.remove(chnl);
+			if (usr != null) {
+				log("Disconnecting " + usr + " and freeing their edit");
+				user_to_socket.remove(usr);
+				db_interface.cleanUserEdit(usr);
+			}
 			try {
 				chnl.close();
 			}

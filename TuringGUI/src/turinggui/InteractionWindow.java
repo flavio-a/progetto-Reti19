@@ -249,10 +249,12 @@ public class InteractionWindow extends javax.swing.JFrame {
                     }
                 } catch (IOException ex) {
                     this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+                } catch (ChannelClosedException ex) {
+                    this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
                 }
             }
             else {
-                this.UserLog("Can't create a document with0 sections", "Error", JOptionPane.ERROR_MESSAGE);
+                this.UserLog("Can't create a document with 0 sections", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
         else {
@@ -264,35 +266,32 @@ public class InteractionWindow extends javax.swing.JFrame {
         String docname = editDocNameTb.getText();
         int secnum = (Integer)editSecNumSpinner.getValue();
         if (!docname.equals("")) {
-            if (secnum != 0) {
-                try {
-                    IOUtils.writeOpKind(OpKind.OP_EDIT, chnl);
-                    IOUtils.writeString(docname, chnl);
-                    IOUtils.writeInt(secnum, chnl);
-                    OpKind resp = IOUtils.readOpKind(chnl);
-                    switch (resp) {
-                        case RESP_OK:
-                            Path file = this.ChooseFile();
-                            IOUtils.channelToFile(chnl, file);
-                            editingTb.setText(docname + "#" + Integer.toString(secnum));
-                            this.UserLog("Section saved to " + file.toString());
-                            break;
-                        case ERR_NO_DOCUMENT:
-                            this.UserLog("Can't edit document: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
-                            break;
-                        // Handle other possible errors
-                        case ERR_RETRY:
-                            throw new IOException();
-                        default:
-                            this.UserLog("Unknown error", "Error", JOptionPane.ERROR_MESSAGE);
-                            break;
-                    }
-                } catch (IOException ex) {
-                    this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+            try {
+                IOUtils.writeOpKind(OpKind.OP_EDIT, chnl);
+                IOUtils.writeString(docname, chnl);
+                IOUtils.writeInt(secnum, chnl);
+                OpKind resp = IOUtils.readOpKind(chnl);
+                switch (resp) {
+                    case RESP_OK:
+                        Path file = this.ChooseFile();
+                        IOUtils.channelToFile(chnl, file);
+                        editingTb.setText(docname + "#" + Integer.toString(secnum));
+                        this.UserLog("Section saved to " + file.toString());
+                        break;
+                    case ERR_NO_DOCUMENT:
+                        this.UserLog("Can't edit document: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    // Handle other possible errors
+                    case ERR_RETRY:
+                        throw new IOException();
+                    default:
+                        this.UserLog("Unknown error", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
                 }
-            }
-            else {
-                this.UserLog("Can't create a document with0 sections", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (IOException ex) {
+                this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+            } catch (ChannelClosedException ex) {
+                this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
             }
         }
         else {
@@ -322,6 +321,8 @@ public class InteractionWindow extends javax.swing.JFrame {
             }
         } catch (IOException ex) {
             this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (ChannelClosedException ex) {
+            this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_endEditBtnActionPerformed
 
@@ -347,6 +348,8 @@ public class InteractionWindow extends javax.swing.JFrame {
             }
         } catch (IOException ex) {
             this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+        } catch (ChannelClosedException ex) {
+            this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_listDocBtnActionPerformed
 
