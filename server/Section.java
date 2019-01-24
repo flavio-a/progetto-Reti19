@@ -31,11 +31,18 @@ public final class Section {
 	 *
 	 * @param full_doc_name full name of the document
 	 * @param n_set number of section
+	 * @throws IllegalArgumentException if the full_doc_nam isn't formatted
+	 *                                  properly (ie: doesn't contain a '/')
 	 */
-	public Section(String full_doc_name, int n_set) {
+	public Section(String full_doc_name, int n_set) throws IllegalArgumentException {
 		int idx_slash = full_doc_name.indexOf('/');
+		if (idx_slash == -1) {
+			throw new IllegalArgumentException("Missing '/' in full document name");
+		}
 		owner = full_doc_name.substring(0, idx_slash);
 		doc_name = full_doc_name.substring(idx_slash + 1);
+		System.out.println(owner);
+		System.out.println(doc_name);
 		n = n_set;
 	}
 

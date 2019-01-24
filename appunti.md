@@ -78,19 +78,22 @@ d'errore.
     sezioni. Può rispondere `ERR_DOCUMENT_EXISTS`.
 - `OP_EDIT`(string, int) i parametri sono il nome completo del documento
     (ie: owner/name) e il numero della sessione. Può rispondere
-    `ERR_NO_DOCUMENT`, `ERR_PERMISSION`, `ERR_NO_SECTION`, `ERR_SECTION_BUSY`,
-    `ERR_USER_BUSY`. In caso di successo, dopo `RESP_OK` invia il file della
-    sezione.
-- `OP_ENDEDIT`(file) comunica solo il file perché l'utente e l'edit corrente
-    sono già noti al server. Può rispondere `ERR_USER_FREE`.
+    `ERR_WRONG_DOCNAME`, `ERR_NO_DOCUMENT`, `ERR_PERMISSION`, `ERR_NO_SECTION`,
+    `ERR_SECTION_BUSY`, `ERR_USER_BUSY`. In caso di successo, dopo `RESP_OK`
+    invia il file della sezione.
+- `OP_ENDEDIT` non deve comunicare niente perché l'utente e l'edit corrente
+    sono già noti al server. Può rispondere `ERR_USER_FREE`. In caso di
+    successo, dopo `RESP_OK` il server si aspetta di ricevere il file
+    modificato dal client.
 - `OP_SHOWSEC`(string, int) i parametri sono il nome completo del documento e
-    il numero della sessione. Può rispondere `ERR_NO_DOCUMENT`,
-    `ERR_NO_SECTION`. In caso di successo, dopo `RESP_OK` invia un booleano che
-    indica se la sezione sta venendo modificata, poi il file della sezione.
+    il numero della sessione. Può rispondere `ERR_WRONG_DOCNAME`,
+    `ERR_NO_DOCUMENT`, `ERR_NO_SECTION`. In caso di successo, dopo `RESP_OK`
+    invia un booleano che indica se la sezione sta venendo modificata, poi il
+    file della sezione.
 - `OP_SHOWDOC`(string) il parametro è il nome completo del documento. Può
-    rispondere `ERR_NO_DOCUMENT`. In caso di successo, dopo `RESP_OK` invia
-    il numero di sezioni (un intero) e poi per ogni sezione invia in ordine
-    un booleano (se sta venendo editata) e il file.
+    rispondere `ERR_NO_DOCUMENT`. In caso di successo, dopo `RESP_OK` invia il
+    numero di sezioni (un intero) e poi per ogni sezione invia in ordine un
+    booleano (se sta venendo editata) e il file.
 - `OP_INVITE`(string, string) i parametri sono il nome dell'utente da invitare
     e il nome del (proprio) documento a cui invitarlo. Può rispondere
     `ERR_NO_DOCUMENT`. Se l'utente invitato non esiste o ha già il permesso di
@@ -110,6 +113,7 @@ Le possibili risposte sono:
 - `ERR_USERNAME_BUSY` username già connesso su un altro socket
 - `ERR_ALREADY_LOGGED` operazione di login in un socket già connesso
 - `ERR_DOCUMENT_EXISTS` documento già esistente, non si può ricreare
+- `ERR_WRONG_DOCNAME` nome del documento non valido
 - `ERR_NO_DOCUMENT` documento inesistente
 - `ERR_PERMISSION` permessi insufficienti
 - `ERR_NO_SECTION` sezione inesistente

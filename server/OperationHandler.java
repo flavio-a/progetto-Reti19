@@ -21,6 +21,7 @@ public class OperationHandler implements Runnable {
 	private final Map<SocketChannel, String> socket_to_user;
 	private final Map<String, SocketChannel> user_to_socket;
 	private final Selector selector;
+	private final String usr;
 
 	public OperationHandler(SocketChannel chnl_set, DBInterface db_interface_set, BlockingQueue<SocketChannel> freesc_set, Map<SocketChannel, String> socket_to_user_set, Map<String, SocketChannel> user_to_socket_set, Selector selector_set) {
 		chnl = chnl_set;
@@ -29,6 +30,7 @@ public class OperationHandler implements Runnable {
 		socket_to_user = socket_to_user_set;
 		user_to_socket = user_to_socket_set;
 		selector = selector_set;
+		usr = socket_to_user.getOrDefault(chnl, null);
 	}
 
 	/**
@@ -38,7 +40,7 @@ public class OperationHandler implements Runnable {
 	 * @param s the string to log
 	 */
 	private void log(String s) {
-		System.out.println(s);
+		System.out.println("User " + usr + " - " + s);
 	}
 
 	/**
@@ -55,7 +57,6 @@ public class OperationHandler implements Runnable {
 	private boolean handleOperation() throws IOException {
 		chnl.configureBlocking(true);
 		OpKind op = IOUtils.readOpKind(chnl);
-		String usr = socket_to_user.get(chnl);
 		if (usr == null) {
 			if (op == OpKind.OP_LOGIN) {
 				log("Requested login");
@@ -91,17 +92,20 @@ public class OperationHandler implements Runnable {
 		}
 		// usr != null
 		switch (op) {
-			case OP_LOGIN:
+			case OP_LOGIN: {
 				log("Requested login on logged socket");
 				IOUtils.writeOpKind(OpKind.ERR_ALREADY_LOGGED, chnl);
-				break;
+			}
+			break;
 			case OP_CREATE: {
 				String docname = IOUtils.readString(chnl);
 				int nsec = IOUtils.readInt(chnl);
 				if (db_interface.createDocument(usr, docname, nsec)) {
+					log("Created document " + usr + "/" + docname);
 					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
 				}
 				else {
+					log("Creation of document " + usr + "/" + docname + " failed: already exists");
 					IOUtils.writeOpKind(OpKind.ERR_DOCUMENT_EXISTS, chnl);
 				}
 			}
@@ -109,54 +113,72 @@ public class OperationHandler implements Runnable {
 			case OP_EDIT: {
 				String fulldocname = IOUtils.readString(chnl);
 				int nsec = IOUtils.readInt(chnl);
-				Section sec = new Section(fulldocname, nsec);
 				try {
+					Section sec = new Section(fulldocname, nsec);
 					Path section_path = db_interface.editSection(usr, sec);
 					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
 					IOUtils.fileToChannel(section_path, chnl);
+					log("Started edit of section " + sec.getDebugRepr() + " succesfull");
+				}
+				catch (IllegalArgumentException e) {
+					log("Wrongly formatted full document name " + fulldocname);
+					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
 				}
 				catch (NoSuchDocumentException e) {
+					log("Edit of " + fulldocname + " failed: no such document");
 					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
 				}
 				catch (NoPermissionException e) {
+					log("Edit of " + fulldocname + " failed: no permissions");
 					IOUtils.writeOpKind(OpKind.ERR_PERMISSION, chnl);
 				}
 				catch (NoSuchSectionException e) {
+					log("Edit of section " + Integer.toString(nsec) + " failed: no such section");
 					IOUtils.writeOpKind(OpKind.ERR_NO_SECTION, chnl);
 				}
 				catch (SectionBusyException e) {
 					IOUtils.writeOpKind(OpKind.ERR_SECTION_BUSY, chnl);
+					log("Edit of section " + Integer.toString(nsec) + " failed: section busy");
 				}
                 catch (UserBusyException e) {
 					IOUtils.writeOpKind(OpKind.ERR_USER_BUSY, chnl);
+					log("Edit failed: user busy");
 				}
 			}
 			break;
 			case OP_ENDEDIT: {
-				try {
-					db_interface.finishEditSection(usr, chnl);
-				}
-				catch (UserFreeException e) {
+				Section sec = db_interface.userIsModifying(usr);
+				if (sec == null) {
 					IOUtils.writeOpKind(OpKind.ERR_USER_FREE, chnl);
+				}
+				else {
+					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+					db_interface.finishEditSection(usr, sec, chnl);
 				}
 			}
 			break;
 			case OP_SHOWSEC: {
 				String fulldocname = IOUtils.readString(chnl);
 				int nsec = IOUtils.readInt(chnl);
-				Section sec = new Section(fulldocname, nsec);
-				if (!db_interface.documentExist(sec.getDocumentPath())) {
-					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
-				}
-				else if (!db_interface.sectionExist(sec)) {
-					IOUtils.writeOpKind(OpKind.ERR_NO_SECTION, chnl);
-				}
-				else {
-					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
-					IOUtils.writeBool(db_interface.isBeingModified(sec), chnl);
-					IOUtils.fileToChannel(
+				try {
+					Section sec = new Section(fulldocname, nsec);
+					if (!db_interface.documentExist(sec.getDocumentPath())) {
+						IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
+					}
+					else if (!db_interface.sectionExist(sec)) {
+						IOUtils.writeOpKind(OpKind.ERR_NO_SECTION, chnl);
+					}
+					else {
+						IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+						IOUtils.writeBool(db_interface.isBeingModified(sec), chnl);
+						IOUtils.fileToChannel(
 						db_interface.getAbsolutePath(sec.getFullPath()), chnl
-					);
+						);
+					}
+				}
+				catch (IllegalArgumentException e) {
+					log("Wrongly formatted full document name " + fulldocname);
+					IOUtils.writeOpKind(OpKind.ERR_NO_DOCUMENT, chnl);
 				}
 			}
 			break;

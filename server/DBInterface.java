@@ -150,12 +150,36 @@ public class DBInterface {
 		return lines;
 	}
 
+	/**
+	 * Check if a user is modifying something now. Synchronized.
+	 *
+	 * @param usr user to check
+	 * @return the section being modified by usr or null if they aren't
+	 *         modifying anything
+	 */
+	public Section userIsModifying(String usr) throws IOException {
+ 		try {
+ 			edit_rwlock.readLock().lock();
+ 			return isEditing.getOrDefault(usr, null);
+ 		}
+ 		finally {
+ 			edit_rwlock.readLock().unlock();
+ 		}
+	 }
+
 	// ============================ DOCUMENTS ================================
 	/**
 	 * Check if a document exist. Not synchronized.
 	 *
 	 * @param doc_path full path (ie: owner/docname) to the document
 	 * @return true iff the document exits
+	 */
+
+	/**
+	 * Check if a document exists.
+	 *
+	 * @param doc_path path of the document relative to the db root directory
+	 * @return true iff the document exist
 	 */
 	public boolean documentExist(Path doc_path) {
 		return root.resolve(doc_path).toFile().exists();
@@ -301,7 +325,7 @@ public class DBInterface {
 		try {
 			fs_rwlock.readLock().lock();
 			// Check document existance
-			if (!this.documentExist(doc_path)) {
+			if (!this.documentExist(sec.getDocumentPath())) {
 				throw new NoSuchDocumentException(sec.getFullDocumentName());
 			}
 			// Check permissions
@@ -339,26 +363,17 @@ public class DBInterface {
 	}
 
 	/**
-	 * End the edit of a section. If the user isn't editing anything, throws
-	 * NoSuchSectionException.
+	 * End the edit of a section, getting the new content from a channel.
+	 * <p>
+	 * Doesn't check that the given user is really modifying the given section.
+	 * In this case there may be unexpected behaviors and concurrency problems.
 	 *
 	 * @param usr the username of the user ending the edit
+	 * @param sec the section that was being edited by usr
 	 * @param newContent a Channel to the new content of the section
-	 * @throws UserFreeException if the user isn't editing anything
 	 * @throws IOException if document doesn't exist or if an IO error occurs
 	 */
-	public void finishEditSection(String usr, ReadableByteChannel newContent) throws IOException, UserFreeException {
-		Section sec;
-		try {
-			edit_rwlock.readLock().lock();
-			sec = isEditing.getOrDefault(usr, null);
-			if (sec == null) {
-				throw new UserFreeException(usr);
-			}
-		}
-		finally {
-			edit_rwlock.readLock().unlock();
-		}
+	public void finishEditSection(String usr, Section sec, ReadableByteChannel newContent) throws IOException {
 		// Write on the file the whole Channel. No need to synchronize
 		// because noone else can modify this section at this time.
 		IOUtils.channelToFile(newContent, root.resolve(sec.getFullPath()));

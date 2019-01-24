@@ -5,37 +5,42 @@
  */
 package turinggui;
 
+import java.awt.event.WindowEvent;
 import server.lib.*;
 import java.io.IOException;
 import java.nio.channels.*;
 import java.net.*;
 import java.rmi.*;
 import java.rmi.registry.*;
+import javax.swing.JFrame;
 
 /**
  *
  * @author flavio
  */
-public class MainWindow extends javax.swing.JFrame {
+public class LoginDialog extends javax.swing.JDialog {
+    private RegistrationInterface registrationServer;
+    private SocketChannel chnl;
+    private String result;
 
-    private RegistrationInterface registrationServer = null;
-    
     /**
-     * Logs a string to the user.
-     * 
-     * TODO: use an alert instead of println
-     * 
-     * @param s the string to show to the user
+     * Creates new form LoginDialog
      */
-    private void UserLog(String s) {
-        System.out.println(s);
+    public LoginDialog() {
+        super();
+        initComponents();
     }
     
     /**
-     * Creates new form MainWindow
+     * Creates new form LoginDialog for the specified SocketChannel
+     * @param owner the Frame from which the dialog is displayed
+     * @param chnl_set the channel on which try the login. The channel should
+     *                 already be connected
      */
-    public MainWindow() {
+    public LoginDialog(JFrame owner, SocketChannel chnl_set) {
+        super(owner, true);
         initComponents();
+        chnl = chnl_set;
     }
 
     /**
@@ -53,10 +58,10 @@ public class MainWindow extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
         jLabel2 = new javax.swing.JLabel();
         loginButton = new javax.swing.JButton();
+        logLabel = new javax.swing.JLabel();
 
-        setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(javax.swing.WindowConstants.DISPOSE_ON_CLOSE);
         setTitle("Login");
-        setMinimumSize(new java.awt.Dimension(228, 153));
 
         registerButton.setText("Register");
         registerButton.addActionListener(new java.awt.event.ActionListener() {
@@ -102,8 +107,9 @@ public class MainWindow extends javax.swing.JFrame {
                     .addGroup(layout.createSequentialGroup()
                         .addComponent(loginButton)
                         .addGap(37, 37, 37)
-                        .addComponent(registerButton)))
-                .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
+                        .addComponent(registerButton))
+                    .addComponent(logLabel))
+                .addContainerGap(25, Short.MAX_VALUE))
         );
         layout.setVerticalGroup(
             layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -116,7 +122,9 @@ public class MainWindow extends javax.swing.JFrame {
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(pwdTextfield, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(jLabel2))
-                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 50, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(logLabel)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 42, Short.MAX_VALUE)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(registerButton)
                     .addComponent(loginButton))
@@ -142,19 +150,13 @@ public class MainWindow extends javax.swing.JFrame {
         catch (RemoteException e) {
             UserLog("Remote error during registration: " + e.getMessage());
         }
-        catch (UsernameAlreadyInUseException e) {
-            UserLog(e.getMessage());
-        } catch (InternalServerException e) {
+        catch (UsernameAlreadyInUseException | InternalServerException e) {
             UserLog(e.getMessage());
         }
     }//GEN-LAST:event_registerButtonActionPerformed
 
     private void loginButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_loginButtonActionPerformed
-        SocketAddress addr = new InetSocketAddress("127.0.0.1", 55000);
-	try (
-            SocketChannel chnl = SocketChannel.open();
-        ) {
-            chnl.connect(addr);
+        try {
             String usr = usernameTextfield.getText();
             IOUtils.writeOpKind(OpKind.OP_LOGIN, chnl);
             IOUtils.writeString(usr, chnl);
@@ -162,18 +164,19 @@ public class MainWindow extends javax.swing.JFrame {
             OpKind response = IOUtils.readOpKind(chnl);
             switch (response) {
                 case RESP_OK:
-                    UserLog("Sucessfully logged in with username \"" + usr + "\"");
-                    // Spawn the real interface and close itself
-                    break;
+                UserLog("Sucessfully logged in with username \"" + usr + "\"");
+                result = usr;
+                this.dispatchEvent(new WindowEvent(this, WindowEvent.WINDOW_CLOSING));
+                break;
                 case ERR_RETRY:
-                    UserLog("Server error: try again");
-                    break;
+                UserLog("Server error: try again");
+                break;
                 case ERR_INVALID_LOGIN:
-                    UserLog("Wrong credentials");
-                    break;
+                UserLog("Wrong credentials");
+                break;
                 case ERR_USERNAME_BUSY:
-                    UserLog("Username already connected");
-                    break;
+                UserLog("Username already connected");
+                break;
             }
         }
         catch (IOException e) {
@@ -181,6 +184,15 @@ public class MainWindow extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_loginButtonActionPerformed
 
+    public String showDialog() {
+        this.setVisible(true);
+        return result;
+    }
+    
+    public void UserLog(String s) {
+        logLabel.setText(s);
+    }
+    
     /**
      * @param args the command line arguments
      */
@@ -198,21 +210,20 @@ public class MainWindow extends javax.swing.JFrame {
                 }
             }
         } catch (ClassNotFoundException ex) {
-            java.util.logging.Logger.getLogger(MainWindow.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(LoginDialog.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (InstantiationException ex) {
-            java.util.logging.Logger.getLogger(MainWindow.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(LoginDialog.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (IllegalAccessException ex) {
-            java.util.logging.Logger.getLogger(MainWindow.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(LoginDialog.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         } catch (javax.swing.UnsupportedLookAndFeelException ex) {
-            java.util.logging.Logger.getLogger(MainWindow.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+            java.util.logging.Logger.getLogger(LoginDialog.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
         }
         //</editor-fold>
 
         /* Create and display the form */
         java.awt.EventQueue.invokeLater(new Runnable() {
-            @Override
             public void run() {
-                new MainWindow().setVisible(true);
+                new LoginDialog().setVisible(true);
             }
         });
     }
@@ -220,6 +231,7 @@ public class MainWindow extends javax.swing.JFrame {
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel jLabel1;
     private javax.swing.JLabel jLabel2;
+    private javax.swing.JLabel logLabel;
     private javax.swing.JButton loginButton;
     private javax.swing.JTextField pwdTextfield;
     private javax.swing.JButton registerButton;

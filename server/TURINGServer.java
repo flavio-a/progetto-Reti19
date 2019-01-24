@@ -256,7 +256,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			try (
 				FileChannel newContent = FileChannel.open(Paths.get("server/TURINGServer.java"), StandardOpenOption.READ);
 			) {
-				db_interface.finishEditSection(usr1, newContent);
+				db_interface.finishEditSection(usr1, db_interface.userIsModifying(usr1), newContent);
 				log("Edit finished succesfully");
 			}
 
