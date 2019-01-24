@@ -129,7 +129,7 @@ Il server può inviare un solo messaggio al client, `OP_INVITE`(string) per
 notificargli un invito appena ricevuto. Il parametro è il nome del documento a
 cui è stato invitato.
 
-### Trasferimento sezioni
+### Trasferimento sezioni (file)
 Per trasferire una sezione (ie: un file) si invia un `long` (8 byte) con la
 dimensione del file in byte, seguito dai byte del file
 
@@ -142,17 +142,19 @@ Primo tick fatto, secondo tick testato
   - [x] [x] Iniziare la modifica di una sezione
   - [x] [x] Finire la modifica
   - [x] [ ] Invitare
-  - [ ] [ ] Mostrare una sezione
-  - [ ] [ ] Mostrare un documento
-  - [ ] [ ] Listare i documenti editabili
+  - [x] [ ] Mostrare una sezione
+  - [x] [ ] Mostrare un documento
+  - [x] [ ] Listare i documenti editabili
 - [ ] Operazioni esportate in rete:
   - [x] [x] Registrazione
   - [x] [x] Login
-  - [ ] [ ] Creare un documento
-  - [ ] [ ] Modificare una sezione
-  - [ ] [ ] Finire la modifica
-  - [ ] [ ] Invitare
-  - [ ] [ ] Mostrare una sezione
-  - [ ] [ ] Mostrare un documento
-  - [ ] [ ] Listare i documenti editabili
+  - [x] [ ] Creare un documento
+  - [x] [ ] Modificare una sezione
+  - [x] [ ] Finire la modifica
+  - [x] [ ] Invitare
+  - [x] [ ] Mostrare una sezione
+  - [x] [ ] Mostrare un documento
+  - [x] [ ] Listare i documenti editabili
+- [ ] Operazioni implementate nel client
+- [ ] Testato il client
 - [ ] [ ] Chat

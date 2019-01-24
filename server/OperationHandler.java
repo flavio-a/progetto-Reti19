@@ -149,11 +149,14 @@ public class OperationHandler implements Runnable {
 			case OP_ENDEDIT: {
 				Section sec = db_interface.userIsModifying(usr);
 				if (sec == null) {
+					log("End of edit failed: user isn't editing anything");
 					IOUtils.writeOpKind(OpKind.ERR_USER_FREE, chnl);
 				}
 				else {
+					log("End of edit succesfull");
 					IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
 					db_interface.finishEditSection(usr, sec, chnl);
+					log("File received succesfully");
 				}
 			}
 			break;

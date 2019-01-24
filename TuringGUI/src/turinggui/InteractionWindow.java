@@ -61,6 +61,7 @@ public class InteractionWindow extends javax.swing.JFrame {
         endEditBtn = new javax.swing.JButton();
         jLabel3 = new javax.swing.JLabel();
         editingTb = new javax.swing.JTextField();
+        listDocBtn = new javax.swing.JButton();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
 
@@ -131,6 +132,13 @@ public class InteractionWindow extends javax.swing.JFrame {
 
         editingTb.setEditable(false);
 
+        listDocBtn.setText("Show editable documents");
+        listDocBtn.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                listDocBtnActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout docsInteractionPanelLayout = new javax.swing.GroupLayout(docsInteractionPanel);
         docsInteractionPanel.setLayout(docsInteractionPanelLayout);
         docsInteractionPanelLayout.setHorizontalGroup(
@@ -143,7 +151,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 .addComponent(createDocBtn))
             .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, docsInteractionPanelLayout.createSequentialGroup()
                 .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-                    .addComponent(editDocNameTb, javax.swing.GroupLayout.DEFAULT_SIZE, 208, Short.MAX_VALUE)
+                    .addComponent(editDocNameTb, javax.swing.GroupLayout.DEFAULT_SIZE, 221, Short.MAX_VALUE)
                     .addGroup(docsInteractionPanelLayout.createSequentialGroup()
                         .addComponent(jLabel3)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
@@ -155,6 +163,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                         .addComponent(editSecNumSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 40, javax.swing.GroupLayout.PREFERRED_SIZE)
                         .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                         .addComponent(editBtn))))
+            .addComponent(listDocBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
         );
         docsInteractionPanelLayout.setVerticalGroup(
             docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
@@ -176,7 +185,9 @@ public class InteractionWindow extends javax.swing.JFrame {
                     .addComponent(endEditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
                     .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)
                     .addComponent(editingTb))
-                .addGap(228, 228, 228))
+                .addGap(191, 191, 191)
+                .addComponent(listDocBtn)
+                .addContainerGap())
         );
 
         javax.swing.GroupLayout layout = new javax.swing.GroupLayout(getContentPane());
@@ -206,9 +217,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addGroup(layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(chatPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addGroup(layout.createSequentialGroup()
-                        .addComponent(docsInteractionPanel, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                        .addGap(0, 18, Short.MAX_VALUE)))
+                    .addComponent(docsInteractionPanel, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE))
                 .addContainerGap())
         );
 
@@ -299,7 +308,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 case RESP_OK:
                     Path file = this.ChooseFile();
                     editingTb.setText("");
-                    IOUtils.channelToFile(chnl, file);
+                    IOUtils.fileToChannel(file, chnl);
                     this.UserLog("Edit finished sucessfully");
                     break;
                 case ERR_USER_FREE:
@@ -315,6 +324,31 @@ public class InteractionWindow extends javax.swing.JFrame {
             this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }//GEN-LAST:event_endEditBtnActionPerformed
+
+    private void listDocBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_listDocBtnActionPerformed
+        try {
+            IOUtils.writeOpKind(OpKind.OP_LISTDOCS, chnl);
+            OpKind resp = IOUtils.readOpKind(chnl);
+            switch (resp) {
+                case RESP_OK:
+                    int ndocs = IOUtils.readInt(chnl);
+                    StringBuilder listBuilder = new StringBuilder();
+                    for (int i = 0; i < ndocs; ++i) {
+                        listBuilder.append(IOUtils.readString(chnl));
+                        listBuilder.append("\n");
+                    }
+                    this.UserLog(listBuilder.toString(), "Elenco documenti", JOptionPane.PLAIN_MESSAGE);
+                    break;
+                case ERR_RETRY:
+                    throw new IOException();
+                default:
+                    this.UserLog("Unknown error", "Error", JOptionPane.ERROR_MESSAGE);
+                    break;
+            }
+        } catch (IOException ex) {
+            this.UserLog("Connection problems: try again", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_listDocBtnActionPerformed
 
     
     private Path ChooseFile() {
@@ -368,14 +402,12 @@ public class InteractionWindow extends javax.swing.JFrame {
         //</editor-fold>
 
         /* Create and display the form */
-        java.awt.EventQueue.invokeLater(new Runnable() {
-            @Override
-            public void run() {
-                try {
-                    new InteractionWindow().setVisible(true);
-                } catch (IOException ex) {
-                    StaticLog("Error connecting to the server: " + ex.getMessage());
-                }
+        java.awt.EventQueue.invokeLater(() -> {
+            try {
+                new InteractionWindow().setVisible(true);
+            } catch (IOException ex) {
+                StaticLog("Error connecting to the server: " + ex.getMessage());
+                System.exit(1);
             }
         });
     }
@@ -393,6 +425,7 @@ public class InteractionWindow extends javax.swing.JFrame {
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JScrollPane jScrollPane1;
+    private javax.swing.JButton listDocBtn;
     private javax.swing.JTextField newDocNameTb;
     private javax.swing.JSpinner newDocSecNumSpinner;
     private javax.swing.JTextArea readMessagesTextarea;
