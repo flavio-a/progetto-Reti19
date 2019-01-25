@@ -45,18 +45,19 @@ Il server tiene una cartella per ogni utente, al cui interno si trovano:
 In caso di crash tutte le sezioni in modifica vengono chiuse come se l'utente
 avesse terminato la modifica rimandando la versione originale del file.
 
-## Registrazione
+## Operazioni
+### Registrazione
 Come da consegna, la registrazione avviene tramite RMI, secondo l'interfaccia
 `RegistrationInterface`, comune a client e server. L'esistenza di un utente è
 data dall'esistenza della relativa cartella.
 La creazione della directory di un utente e dei suoi file base (ie: user_info)
 avviene solo durante la registrazione; la cancellazione invece non avviene mai.
 
-## Login
+### Login
 Per il login il server controlla l'esistenza del file `DB_ROOT/usr/user_info` e
 a correttezza della password (che deve essere uguale al contenuto del file).
 
-## Inviti
+### Inviti
 Dato che gli inviti possono essere inviati ad un client da un thread che sta
 servendo un altro client, il server si assicura che un solo server alla volta
 scriva su ogni SocketChannel, in modo da garantire che due comunicazioni non si
@@ -86,7 +87,7 @@ d'errore.
     (ie: owner/name) e il numero della sessione. Può rispondere
     `ERR_WRONG_DOCNAME`, `ERR_NO_DOCUMENT`, `ERR_PERMISSION`, `ERR_NO_SECTION`,
     `ERR_SECTION_BUSY`, `ERR_USER_BUSY`. In caso di successo, dopo `RESP_OK`
-    invia il file della sezione.
+    invia il file della sezione, seguito dall'ultimo byte dell'indirizzo IP.
 - `OP_ENDEDIT` non deve comunicare niente perché l'utente e l'edit corrente
     sono già noti al server. Può rispondere `ERR_USER_FREE`. In caso di
     successo, dopo `RESP_OK` il server si aspetta di ricevere il file
@@ -138,6 +139,23 @@ cui è stato invitato.
 ### Trasferimento sezioni (file)
 Per trasferire una sezione (ie: un file) si invia un `long` (8 byte) con la
 dimensione del file in byte, seguito dai byte del file
+
+## Chat
+La chat viene implementata tramite multicast UDP (come richiesto nelle
+specifiche). Il multicast avviene direttamente tra i client e non interessa il
+server. Il multicast avviene su un indirizzo IP assegnato dal server, tutti
+uguali per i primi tre byte, e sempre sulla stessa porta. Il server comunica
+solo l'ultimo byte dell'indirizzo al client quando inizia una modifica.
+
+Il server assegna gli IP incrementalmente, tornando a 0 quando arriva a 255.
+Si suppone che nel tempo in cui iniziano le modifiche di 255 documenti tutti
+i client abbiano terminato la loro modifica, quindi non c'è controllo che un
+indirizzo sia già in uso. Gli indirizzi vengono rilasciati quando l'ultimo
+client termina l'edit di una sezione.
+
+Il contatore dell'ultimo indirizzo usato e la mappa documento -> chatInfo
+viene mantenuta da DBInterface in memoria (tutte le chat sono perse se il
+server crasha).
 
 # TODO
 Primo tick fatto, secondo tick testato

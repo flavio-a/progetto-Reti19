@@ -37,6 +37,9 @@ public class DBInterface {
 	private final Map<String, Section> isEditing;
 	// Given a section, returns if it is being edited
 	private final Map<Section, Boolean> beingEdited;
+	// Chat infos
+	private byte new_chat_add = 0;
+	private final Map<String, ChatInfo> doc_to_chat;
 
 	/**
 	 * Creates a new instance of DBInterface. If the passed root directory
@@ -59,6 +62,7 @@ public class DBInterface {
 		isEditing = new HashMap<String, Section>();
 		beingEdited = new HashMap<Section, Boolean>();
 
+		doc_to_chat = new HashMap<String, ChatInfo>();
 	}
 
 
@@ -245,6 +249,21 @@ public class DBInterface {
 		}
 	}
 
+	/**
+	 * Get the last byte of the IP addr of a document's chat. Not synchronized,
+	 * should only be used by a thread that is sure the ChatInfo object is in
+	 * the hashtable (for instance, by a thread handling a user that is
+	 * modifying this document). Assumes the document is associated with a
+	 * ChatInfo.
+	 *
+	 * @param fulldocname full name of the document
+	 * @return the last byte of the IP addr
+	 */
+	public byte getLastChatByte(String fulldocname) {
+		System.out.println(fulldocname);
+		return doc_to_chat.get(fulldocname).getAddr();
+	}
+
 	// ============================= SECTIONS ================================
 	/**
 	 * Check if a section exist. If the document itself doesn't exits it returns
@@ -352,12 +371,36 @@ public class DBInterface {
 			// Give edit to the user
 			isEditing.put(usr, sec);
 			beingEdited.put(sec, true);
+			System.out.println(sec.getFullDocumentName());
+			ChatInfo chat = doc_to_chat.get(sec.getFullDocumentName());
+			if (chat == null) {
+				chat = new ChatInfo(new_chat_add);
+				doc_to_chat.put(sec.getFullDocumentName(), chat);
+				++new_chat_add;
+			}
+			chat.connect();
 			return sec_path;
 			// Now the writeLock can be released because only the user can
 			// modify the section file, then no need for synchronization
 		}
 		finally {
 			edit_rwlock.writeLock().unlock();
+		}
+	}
+
+	/**
+	 * Does the cleanup after the end of a section edit.
+	 * It's just to factorize code commono to both finishEditSection and
+	 * cleanUserEdit. Not synchronized, expect the caller to do it.
+	 */
+	private void endcleanSectionEdit(String usr, Section sec) {
+		// Edit itself
+		isEditing.remove(usr);
+		beingEdited.remove(sec);
+		// Chat
+		ChatInfo chat = doc_to_chat.get(sec.getFullDocumentName());
+		if (chat.disconnect()) {
+			doc_to_chat.remove(sec.getFullDocumentName());
 		}
 	}
 
@@ -379,8 +422,7 @@ public class DBInterface {
 		// Release edit lock on the section
 		try {
 			edit_rwlock.writeLock().lock();
-			isEditing.remove(usr);
-			beingEdited.remove(sec);
+			endcleanSectionEdit(usr, sec);
 		}
 		finally {
 			edit_rwlock.writeLock().unlock();
@@ -398,16 +440,15 @@ public class DBInterface {
 	 * @param usr the username of the user ending the edit
 	 */
 	public void cleanUserEdit(String usr) {
-		Section sec = this.userIsModifying(usr);
-		if (sec != null) {
-			try {
-				edit_rwlock.writeLock().lock();
-				isEditing.remove(usr);
-				beingEdited.remove(sec);
+		try {
+			edit_rwlock.writeLock().lock();
+			Section sec = isEditing.get(usr);
+			if (sec != null) {
+				endcleanSectionEdit(usr, sec);
 			}
-			finally {
-				edit_rwlock.writeLock().unlock();
-			}
+		}
+		finally {
+			edit_rwlock.writeLock().unlock();
 		}
 	}
 }

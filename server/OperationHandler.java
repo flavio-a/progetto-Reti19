@@ -82,6 +82,7 @@ public class OperationHandler implements Runnable {
 				chnl.lock();
 				IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
 				IOUtils.fileToChannel(section_path, chnl);
+				IOUtils.writeByte(db_interface.getLastChatByte(fulldocname), chnl);
 			}
 			finally {
 				chnl.unlock();

@@ -18,7 +18,6 @@ import java.nio.channels.*;
  */
 public class TURINGServer implements RegistrationInterface, Runnable {
 	// ================================ STATIC ================================
-	public static final String rmi_registry_name = "TURING-REGISTRATION";
 	private static final int rmi_interaction_port = 24775;
 	private static final String default_db_path = "./TURING_db/";
 
@@ -96,7 +95,7 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 		RegistrationInterface stub = (RegistrationInterface)UnicastRemoteObject.exportObject(this, registry_port);
 		LocateRegistry.createRegistry(registry_port);
 		Registry r = LocateRegistry.getRegistry(registry_port);
-		r.rebind(rmi_registry_name, stub);
+		r.rebind(Constants.rmi_registry_name, stub);
 	}
 
 	/**

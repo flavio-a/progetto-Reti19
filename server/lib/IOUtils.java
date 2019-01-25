@@ -61,15 +61,11 @@ public final class IOUtils {
 
 	// =============================== CHANNELS ===============================
 	/**
-	 * Get the kind of operation from a channel. Consume its first byte.
-	 *
-	 * @param chnl channel to read from
-	 * @return OpKind read from the chnl
-	 * @throws ChannelClosedException if the read-end of the channel has been
-	 *                                closed
+	 * Utility function to read a fixed amount of unformatted bytes from a
+	 * channel to a ByteBuffer.
 	 */
-	public static OpKind readOpKind(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
-		ByteBuffer buff = ByteBuffer.allocate(1);
+	private static ByteBuffer readData(ReadableByteChannel chnl, int size) throws IOException, ChannelClosedException {
+		ByteBuffer buff = ByteBuffer.allocate(size);
 		buff.clear();
 		while (buff.remaining() > 0) {
 			if (chnl.read(buff) == -1) {
@@ -77,7 +73,49 @@ public final class IOUtils {
 			}
 		}
 		buff.flip();
-		return OpKind.getOp(buff.get());
+		return buff;
+	}
+
+
+	/**
+	 * Get a byte from a channel.
+	 *
+	 * @param chnl channel to read from
+	 * @return byte read from the chnl
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
+	 */
+	public static byte readByte(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
+		return readData(chnl, 1).get();
+	}
+
+	/**
+	 * Write a byte on a channel
+	 *
+	 * @param b byte to write
+	 * @param chnl channel to write to
+	 */
+	public static void writeByte(byte b, WritableByteChannel chnl) throws IOException {
+		ByteBuffer buff = ByteBuffer.allocate(1);
+		buff.clear();
+		buff.put(b);
+		buff.flip();
+		while (buff.remaining() > 0) {
+			chnl.write(buff);
+		}
+	}
+
+
+	/**
+	 * Get the kind of operation from a channel..
+	 *
+	 * @param chnl channel to read from
+	 * @return OpKind read from the chnl
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
+	 */
+	public static OpKind readOpKind(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
+		return OpKind.getOp(readByte(chnl));
 	}
 
 	/**
@@ -87,14 +125,9 @@ public final class IOUtils {
 	 * @param chnl channel to write to
 	 */
 	public static void writeOpKind(OpKind op, WritableByteChannel chnl) throws IOException {
-		ByteBuffer buff = ByteBuffer.allocate(1);
-		buff.clear();
-		buff.put(OpKind.getNum(op));
-		buff.flip();
-		while (buff.remaining() > 0) {
-			chnl.write(buff);
-		}
+		writeByte(OpKind.getNum(op), chnl);
 	}
+
 
 	/**
 	 * Read an int from a channel.
@@ -105,15 +138,7 @@ public final class IOUtils {
 	 *                                closed
 	 */
 	public static int readInt(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
-		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES);
-		buff.clear();
-		while (buff.remaining() > 0) {
-			if (chnl.read(buff) == -1) {
-				throw new ChannelClosedException();
-			}
-		}
-		buff.flip();
-		return buff.getInt();
+		return readData(chnl, Integer.BYTES).getInt();
 	}
 
 	/**
@@ -132,6 +157,7 @@ public final class IOUtils {
 		}
 	}
 
+
 	/**
 	 * Read a boolean from a channel.
 	 *
@@ -141,15 +167,7 @@ public final class IOUtils {
 	 *                                closed
 	 */
 	public static boolean readBool(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
-		ByteBuffer buff = ByteBuffer.allocate(1);
-		buff.clear();
-		while (buff.remaining() > 0) {
-			if (chnl.read(buff) == -1) {
-				throw new ChannelClosedException();
-			}
-		}
-		buff.flip();
-		return buff.get() != 0;
+		return readByte(chnl) != 0;
 	}
 
 	/**
@@ -159,14 +177,9 @@ public final class IOUtils {
 	 * @param chnl channel to write to
 	 */
 	public static void writeBool(boolean b, WritableByteChannel chnl) throws IOException {
-		ByteBuffer buff = ByteBuffer.allocate(1);
-		buff.clear();
-		buff.put((byte)(b ? 1 : 0));
-		buff.flip();
-		while (buff.remaining() > 0) {
-			chnl.write(buff);
-		}
+		writeByte((byte)(b ? 1 : 0), chnl);
 	}
+
 
 	/**
 	 * Read a string from a chnl (provided that the format is the one specified
@@ -218,6 +231,7 @@ public final class IOUtils {
 			chnl.write(buff);
 		}
 	}
+
 
 	/**
 	 * Copies a channel to a file using nio and direct channels tranfer. The

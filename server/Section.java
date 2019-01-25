@@ -2,12 +2,13 @@ package server;
 
 import java.nio.*;
 import java.nio.file.*;
-import server.*;
 
 /**
  * Immutable class to describe a section of a document.
  */
 public final class Section {
+	public static final String sep = "/";
+
 	private String owner, doc_name;
 	private int n;
 
@@ -35,9 +36,9 @@ public final class Section {
 	 *                                  properly (ie: doesn't contain a '/')
 	 */
 	public Section(String full_doc_name, int n_set) throws IllegalArgumentException {
-		int idx_slash = full_doc_name.indexOf('/');
+		int idx_slash = full_doc_name.indexOf(sep);
 		if (idx_slash == -1) {
-			throw new IllegalArgumentException("Missing '/' in full document name");
+			throw new IllegalArgumentException("Missing separator in full document name");
 		}
 		owner = full_doc_name.substring(0, idx_slash);
 		doc_name = full_doc_name.substring(idx_slash + 1);
@@ -64,7 +65,7 @@ public final class Section {
 	 * @return the full document name
 	 */
 	public String getFullDocumentName() {
-		return owner + doc_name;
+		return owner + sep + doc_name;
 	}
 
 	/**
