@@ -272,14 +272,14 @@ public class DBInterface {
 	public int sectionNumber(Path doc) throws IOException {
 		try (
 			DirectoryStream<Path> doc_files = Files.newDirectoryStream(
-							doc, section_file_prefix + "*");
+							root.resolve(doc), section_file_prefix + "*");
 		) {
 			int preflen = section_file_prefix.length();
 			return StreamSupport.stream(doc_files.spliterator(), false)
 					.mapToInt(p -> Integer.parseInt(
 							p.getFileName().toString().substring(preflen)
 						))
-					.max().getAsInt();
+					.max().getAsInt() + 1;
 		}
 	}
 

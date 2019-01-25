@@ -69,7 +69,7 @@ che specifica il tipo di richiesta, seguito dai parametri della richiesta. Il
 server risponde a tutte le richieste con un ack, seguito da eventuali altri
 dati della risposta. In caso di errore l'ack è un codice di errore. I dati
 primitivi sono inviati as-is, le stringhe iniziano con un `int` (4 byte) che ne
-specifica la lunghezza, seguito dai byte della stringa.
+specifica la lunghezza (in byte), seguito dai byte della stringa.
 
 Segue un elenco delle possibili richieste, con i rispettivi parametri e
 possibili risposte di errore. Tutte le richieste ricevono come risposta
@@ -161,6 +161,6 @@ Primo tick fatto, secondo tick testato
   - [x] [ ] Mostrare una sezione
   - [x] [ ] Mostrare un documento
   - [x] [ ] Listare i documenti editabili
-- [ ] Operazioni implementate nel client
+- [x] Operazioni implementate nel client
 - [ ] Testato il client
 - [ ] [ ] Chat

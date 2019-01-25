@@ -175,7 +175,7 @@ public class OperationHandler implements Runnable {
 		}
 		else {
 			log("Show of document " + fulldocname + " succesful");
-			int numsec = db_interface.sectionNumber(docpath); // TODO fix it
+			int numsec = db_interface.sectionNumber(docpath);
 			log("Numsec = " + Integer.toString(numsec));
 			try {
 				chnl.lock();

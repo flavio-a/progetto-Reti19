@@ -189,19 +189,17 @@ public final class IOUtils {
 		}
 		buff.flip();
 		int len = buff.getInt();
-		StringBuilder strbuilder = new StringBuilder(len);
-		buff.clear();
-		buff.limit(Math.min(len, buff.capacity()));
+		byte[] str_bytes = new byte[len];
+		int read;
 		while (len > 0) {
-			len -= chnl.read(buff);
-			// TODO: doesn't work with any character
-			buff.flip();
-			while (buff.hasRemaining()) {
-				strbuilder.append((char)buff.get());
-			}
 			buff.clear();
+			buff.limit(Math.min(len, buff.capacity()));
+			read = chnl.read(buff);
+			buff.flip();
+			buff.get(str_bytes, str_bytes.length - len, read);
+			len -= read;
 		}
-		return strbuilder.toString();
+		return new String(str_bytes, utf8);
 	}
 
 	/**
@@ -211,9 +209,9 @@ public final class IOUtils {
 	 * @param chnl channel to write to
 	 */
 	public static void writeString(String str, WritableByteChannel chnl) throws IOException {
-		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES + str.length() * 4);
+		ByteBuffer buff = ByteBuffer.allocate(Integer.BYTES + str.getBytes().length);
 		buff.clear();
-		buff.putInt(str.length());
+		buff.putInt(str.getBytes().length);
 		buff.put(str.getBytes());
 		buff.flip();
 		while (buff.hasRemaining()) {
