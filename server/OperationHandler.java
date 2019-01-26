@@ -11,7 +11,6 @@ import server.lib.*;
 
 /**
  * Task of TURING server to handle a single operation on a connection.
- * <p>
  *
  */
 public class OperationHandler implements Runnable {

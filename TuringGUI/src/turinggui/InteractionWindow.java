@@ -7,7 +7,6 @@ package turinggui;
 
 import java.io.*;
 import java.net.*;
-import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.*;
 import java.nio.file.*;
@@ -19,7 +18,7 @@ import server.lib.*;
  * @author flavio
  */
 public class InteractionWindow extends javax.swing.JFrame {
-    public static final Charset encoding = StandardCharsets.UTF_8;
+    public static final Charset encoding = Constants.encoding;
     
     private final SocketChannel chnl;
     private final String usr;

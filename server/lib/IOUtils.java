@@ -14,7 +14,7 @@ import static java.nio.file.StandardOpenOption.*;
  */
 public final class IOUtils {
 	public static final String linesep = System.getProperty("line.separator");
-	public static final Charset utf8 = StandardCharsets.UTF_8;
+	public static final Charset encoding = Constants.encoding;
 
 	// ================================ FILES ================================
 	/**
@@ -25,7 +25,7 @@ public final class IOUtils {
 	 *             in this string
 	 */
 	public static void addRow(Path f, String text) throws IOException {
-		byte[] bytes = (text + linesep).getBytes(StandardCharsets.UTF_8);
+		byte[] bytes = (text + linesep).getBytes(encoding);
 		Files.write(f, bytes, StandardOpenOption.APPEND);
 	}
 
@@ -56,7 +56,7 @@ public final class IOUtils {
 	 * @param content content of the file at its creation
 	 */
 	public static void createFileContent(Path f, String content) throws IOException {
-		Files.write(f, (content + linesep).getBytes(utf8), CREATE_NEW, WRITE);
+		Files.write(f, (content + linesep).getBytes(encoding), CREATE_NEW, WRITE);
 	}
 
 	// =============================== CHANNELS ===============================
@@ -212,7 +212,7 @@ public final class IOUtils {
 			buff.get(str_bytes, str_bytes.length - len, read);
 			len -= read;
 		}
-		return new String(str_bytes, utf8);
+		return new String(str_bytes, encoding);
 	}
 
 	/**

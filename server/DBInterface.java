@@ -89,8 +89,7 @@ public class DBInterface {
 			Path usr_path = root.resolve(usr);
 			Files.createDirectory(usr_path);
 			// This also creates the file
-			byte[] bytes = pwd.trim().getBytes(StandardCharsets.UTF_8);
-			Files.write(usr_path.resolve(pwd_file), bytes);
+			IOUtils.createFileContent(usr_path.resolve(pwd_file), pwd.trim());
 			Files.createFile(usr_path.resolve(invitations_file));
 			Files.createFile(usr_path.resolve(permissions_file));
 			return true;

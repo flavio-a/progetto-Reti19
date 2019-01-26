@@ -14,7 +14,7 @@ import java.nio.charset.*;
  * one iterator at a time.
  */
 public class FileLineReader implements Iterable<String>, Closeable, AutoCloseable {
-	private static final Charset utf8 = StandardCharsets.UTF_8;
+	private static final Charset encoding = Constants.encoding;
 	private static final String linesep = System.getProperty("line.separator");
 
 	private final FileChannel filechannel;
@@ -42,7 +42,7 @@ public class FileLineReader implements Iterable<String>, Closeable, AutoCloseabl
 		while ((idx = buffer_string.indexOf(linesep)) == -1
 				&& filechannel.read(buffer) != -1) {
 			buffer.flip();
-			buffer_string += utf8.decode(buffer).toString();
+			buffer_string += encoding.decode(buffer).toString();
 			buffer.clear();
 		}
 		if (idx == -1) {
@@ -108,14 +108,3 @@ public class FileLineReader implements Iterable<String>, Closeable, AutoCloseabl
 		}
 	}
 }
-
-// try (
-// 	FileChannel outFile = FileChannel.open(Paths.get("translated.log.txt"), StandardOpenOption.WRITE, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-// ) {
-// 	for (String result : results) {
-// 		outFile.write(ByteBuffer.wrap(result.getBytes(utf8)));
-// 	}
-// }
-// catch (IOException e) {
-// 	System.out.println("Error while writing file");
-// }
