@@ -30,9 +30,9 @@ public class ChatListener extends SwingWorker<Void, String> {
     }
 
     @Override
-    protected Void doInBackground() throws Exception {
+    protected Void doInBackground() {
         byte[] buff = new byte[Constants.chat_msg_length];
-        while (true) {
+        while (!this.isCancelled()) {
             DatagramPacket pk = new DatagramPacket(buff, buff.length);
             try {
                 sock.receive(pk);
@@ -43,6 +43,7 @@ public class ChatListener extends SwingWorker<Void, String> {
                 System.out.println("IO error while receiving time datagram");
             }
         }
+        return null;
     }
     
     @Override
@@ -50,5 +51,10 @@ public class ChatListener extends SwingWorker<Void, String> {
         for (String message: chunks) {
             outputTa.append(message + "\n");
         }
+    }
+    
+    public void stop() {
+        this.cancel(true);
+        sock.close();
     }
 }

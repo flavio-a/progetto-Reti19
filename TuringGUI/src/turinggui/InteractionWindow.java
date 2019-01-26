@@ -93,6 +93,8 @@ public class InteractionWindow extends javax.swing.JFrame {
         readMessagesTextarea.setRows(5);
         jScrollPane1.setViewportView(readMessagesTextarea);
 
+        writeMessageTextbox.setEditable(false);
+
         sendMessageButton.setText("Send");
         sendMessageButton.addActionListener(new java.awt.event.ActionListener() {
             public void actionPerformed(java.awt.event.ActionEvent evt) {
@@ -336,7 +338,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 OpKind resp = getNonInviteOpKind();
                 switch (resp) {
                     case RESP_OK:
-                        Path file = this.ChooseFile();
+                        Path file = this.ChooseFile(false);
                         IOUtils.channelToFile(chnl, file);
                         editingTb.setText(docname + "#" + Integer.toString(secnum));
                         byte chat_byte = IOUtils.readByte(chnl);
@@ -370,7 +372,7 @@ public class InteractionWindow extends javax.swing.JFrame {
             OpKind resp = getNonInviteOpKind();
             switch (resp) {
                 case RESP_OK:
-                    Path file = this.ChooseFile();
+                    Path file = this.ChooseFile(false);
                     editingTb.setText("");
                     IOUtils.fileToChannel(file, chnl);
                     deactivateChat();
@@ -453,7 +455,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 OpKind resp = getNonInviteOpKind();
                 switch (resp) {
                     case RESP_OK:
-                        Path file = this.ChooseFile();
+                        Path file = this.ChooseFile(false);
                         if (IOUtils.readBool(chnl)) {
                             UserLog("This section is being edited right now");
                         }
@@ -496,7 +498,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                 switch (resp) {
                     case RESP_OK:
                         int nsec = IOUtils.readInt(chnl);
-                        Path file = this.ChooseFile();
+                        Path file = this.ChooseFile(true);
                         for (Integer i = 0; i < nsec; ++i) {
                             if (IOUtils.readBool(chnl)) {
                                 UserLog("This section is being edited right now");
@@ -541,8 +543,11 @@ public class InteractionWindow extends javax.swing.JFrame {
     }//GEN-LAST:event_sendMessageButtonActionPerformed
 
     
-    private Path ChooseFile() {
+    private Path ChooseFile(boolean dir) {
         JFileChooser fileChooser = new JFileChooser();
+        if (dir) {
+            fileChooser.setFileSelectionMode(JFileChooser.DIRECTORIES_ONLY);
+        }
         int result = fileChooser.showOpenDialog(this);
         if (result == JFileChooser.APPROVE_OPTION) {
             return Paths.get(fileChooser.getSelectedFile().getAbsolutePath());
@@ -566,6 +571,7 @@ public class InteractionWindow extends javax.swing.JFrame {
     
     private void activateChat(byte last_byte) throws IOException {
         chat_active = true;
+        writeMessageTextbox.setEditable(chat_active);
         byte[] ip_addr = new byte[4];
         System.arraycopy(Constants.multicast_base_addr, 0, ip_addr, 0, 3);
         ip_addr[3] = last_byte;
@@ -579,12 +585,15 @@ public class InteractionWindow extends javax.swing.JFrame {
             byte[] buff = (usr + ": " + msg).getBytes(encoding);
             DatagramPacket pk = new DatagramPacket(buff, buff.length, chat_addr, Constants.multicast_port);
             chat_sock.send(pk);
+            writeMessageTextbox.setText("");
         }
     }
     
     private void deactivateChat() {
-        chat_listener.cancel(true);
+        chat_listener.stop();
         chat_active = false;
+        writeMessageTextbox.setEditable(chat_active);
+        writeMessageTextbox.setText("");
         chat_addr = null;
     }
     

@@ -129,6 +129,9 @@
           </SubComponents>
         </Container>
         <Component class="javax.swing.JTextField" name="writeMessageTextbox">
+          <Properties>
+            <Property name="editable" type="boolean" value="false"/>
+          </Properties>
         </Component>
         <Component class="javax.swing.JButton" name="sendMessageButton">
           <Properties>

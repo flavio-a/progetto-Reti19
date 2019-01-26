@@ -163,27 +163,8 @@ messaggi inviati sulla chat hanno una lunghezza massima (specificata tra le
 costanti), un messaggio che superi quella lunghezza viene troncato.
 
 # TODO
-Primo tick fatto, secondo tick testato
-- [x] Operazioni sul db:
-  - [x] [x] Registrazione
-  - [x] [x] Login
-  - [x] [x] Creare un documento
-  - [x] [x] Iniziare la modifica di una sezione
-  - [x] [x] Finire la modifica
-  - [x] [ ] Invitare
-  - [x] [ ] Mostrare una sezione
-  - [x] [ ] Mostrare un documento
-  - [x] [ ] Listare i documenti editabili
-- [x] Operazioni esportate in rete:
-  - [x] [x] Registrazione
-  - [x] [x] Login
-  - [x] [ ] Creare un documento
-  - [x] [ ] Modificare una sezione
-  - [x] [ ] Finire la modifica
-  - [x] [ ] Invitare
-  - [x] [ ] Mostrare una sezione
-  - [x] [ ] Mostrare un documento
-  - [x] [ ] Listare i documenti editabili
-- [x] Operazioni implementate nel client
-- [ ] Testato il client
-- [ ] [ ] Chat
+Test like no tomorrow
+Add invitation background listening in the client
+
+Known bugs:
+NONE :)

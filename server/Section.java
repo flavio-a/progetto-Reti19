@@ -94,6 +94,7 @@ public final class Section {
 		return getDocumentPath().resolve(getSectionPath());
 	}
 
+	@Override
 	public boolean equals(Object obj) {
 		if (!(obj instanceof Section)) {
             return false;
@@ -102,6 +103,11 @@ public final class Section {
 		return owner.equals(s.owner)
 				&& doc_name.equals(s.doc_name)
 				&& n == s.n;
+	}
+
+	@Override
+	public int hashCode() {
+		return this.getFullDocumentName().hashCode() * 17 + Integer.hashCode(n);
 	}
 
 	public String getDebugRepr() {
