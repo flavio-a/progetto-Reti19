@@ -259,7 +259,6 @@ public class DBInterface {
 	 * @return the last byte of the IP addr
 	 */
 	public byte getLastChatByte(String fulldocname) {
-		System.out.println(fulldocname);
 		return doc_to_chat.get(fulldocname).getAddr();
 	}
 
@@ -370,7 +369,6 @@ public class DBInterface {
 			// Give edit to the user
 			isEditing.put(usr, sec);
 			beingEdited.put(sec, true);
-			System.out.println(sec.getFullDocumentName());
 			ChatInfo chat = doc_to_chat.get(sec.getFullDocumentName());
 			if (chat == null) {
 				chat = new ChatInfo(new_chat_add);

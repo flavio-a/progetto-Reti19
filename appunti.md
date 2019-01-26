@@ -164,7 +164,7 @@ costanti), un messaggio che superi quella lunghezza viene troncato.
 
 # TODO
 Test like no tomorrow
-Add invitation background listening in the client
+Write the report
 
 Known bugs:
 NONE :)

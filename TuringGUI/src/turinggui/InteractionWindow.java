@@ -5,11 +5,16 @@
  */
 package turinggui;
 
+import java.awt.event.WindowEvent;
 import java.io.*;
 import java.net.*;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.*;
 import java.nio.file.*;
+import java.util.Optional;
+import java.util.concurrent.locks.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javax.swing.*;
 import server.lib.*;
 
@@ -21,6 +26,7 @@ public class InteractionWindow extends javax.swing.JFrame {
     public static final Charset encoding = Constants.encoding;
     
     private final SocketChannel chnl;
+    private Lock sock_lock;
     private final String usr;
     private final DatagramSocket chat_sock;
     private ChatListener chat_listener;
@@ -32,16 +38,52 @@ public class InteractionWindow extends javax.swing.JFrame {
      * @throws java.io.IOException if an I/O exception occurs while connecting 
      *                             to the socket
      */
-    public InteractionWindow() throws IOException {
-        initComponents();
-        chat_active = false;
-        chat_addr = null;
-        chat_sock = new DatagramSocket();
+    public InteractionWindow() throws Exception, IOException {
         SocketAddress addr = new InetSocketAddress("127.0.0.1", 55000);
         chnl = SocketChannel.open();
         chnl.connect(addr);
         usr = new LoginDialog(this, chnl).showDialog();
-        this.showUsrTextbox.setText(usr);
+        if (usr == null) {
+            throw new Exception("No username provided!");
+        }
+        chnl.configureBlocking(false);
+        
+        initComponents();
+        chat_active = false;
+        chat_addr = null;
+        chat_sock = new DatagramSocket();
+        sock_lock = new ReentrantLock();
+        showUsrTextbox.setText(usr);
+        // Listener for invitations
+        SwingWorker<Void, Void> invitations_listener = new SwingWorker<Void, Void>() {
+            @Override
+            protected Void doInBackground() {
+                while (true) {
+                    // This function doesn't handle 
+                    try {
+                        sock_lock.lock();
+                        Optional<OpKind> maybeInvite = IOUtils.tryReadOpKind(chnl);
+                        if (maybeInvite.isPresent()) {
+                            handleInviteOp();
+                        }
+                    } catch (IOException e) {
+                        UserLog("Connection problems reading invitations details", "Error", JOptionPane.ERROR_MESSAGE);
+                    } catch (ChannelClosedException e) {
+                        UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
+                    }
+                    finally {
+                        sock_lock.unlock();
+                    }
+                    try {
+                        Thread.sleep(1000);
+                    }
+                    catch (InterruptedException e) {
+                        // Do nothing
+                    }
+                }
+            }
+        };
+        invitations_listener.execute();
     }
 
     /**
@@ -295,6 +337,7 @@ public class InteractionWindow extends javax.swing.JFrame {
         if (!docname.equals("")) {
             if (secnum != 0) {
                 try {
+                    lockSocket();
                     IOUtils.writeOpKind(OpKind.OP_CREATE, chnl);
                     IOUtils.writeString(docname, chnl);
                     IOUtils.writeInt(secnum, chnl);
@@ -317,6 +360,9 @@ public class InteractionWindow extends javax.swing.JFrame {
                 } catch (ChannelClosedException ex) {
                     this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
                 }
+                finally {
+                    unlockSocket();
+                }
             }
             else {
                 this.UserLog("Can't create a document with 0 sections", "Error", JOptionPane.ERROR_MESSAGE);
@@ -332,6 +378,7 @@ public class InteractionWindow extends javax.swing.JFrame {
         int secnum = (Integer)editSecNumSpinner.getValue();
         if (!docname.equals("")) {
             try {
+                lockSocket();
                 IOUtils.writeOpKind(OpKind.OP_EDIT, chnl);
                 IOUtils.writeString(docname, chnl);
                 IOUtils.writeInt(secnum, chnl);
@@ -348,7 +395,21 @@ public class InteractionWindow extends javax.swing.JFrame {
                     case ERR_NO_DOCUMENT:
                         this.UserLog("Can't edit document: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
                         break;
-                    // Handle other possible errors
+                    case ERR_WRONG_DOCNAME:
+                        this.UserLog("Can't edit document: wrong document name", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_PERMISSION:
+                        this.UserLog("Can't edit document: you don't have the permission", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_NO_SECTION:
+                        this.UserLog("Can't edit section: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_SECTION_BUSY:
+                        this.UserLog("Can't edit section: already being edited", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
+                    case ERR_USER_BUSY:
+                        this.UserLog("Can't edit section: you're already editing something", "Error", JOptionPane.ERROR_MESSAGE);
+                        break;
                     case ERR_RETRY:
                         throw new IOException();
                     default:
@@ -360,6 +421,9 @@ public class InteractionWindow extends javax.swing.JFrame {
             } catch (ChannelClosedException ex) {
                 this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
             }
+            finally {
+                unlockSocket();
+            }
         }
         else {
             this.UserLog("Can't create a document without a name", "Error", JOptionPane.ERROR_MESSAGE);
@@ -368,6 +432,7 @@ public class InteractionWindow extends javax.swing.JFrame {
 
     private void endEditBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_endEditBtnActionPerformed
         try {
+            lockSocket();
             IOUtils.writeOpKind(OpKind.OP_ENDEDIT, chnl);
             OpKind resp = getNonInviteOpKind();
             switch (resp) {
@@ -392,10 +457,14 @@ public class InteractionWindow extends javax.swing.JFrame {
         } catch (ChannelClosedException ex) {
             this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
         }
+        finally {
+            unlockSocket();
+        }
     }//GEN-LAST:event_endEditBtnActionPerformed
 
     private void listDocBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_listDocBtnActionPerformed
         try {
+            lockSocket();
             IOUtils.writeOpKind(OpKind.OP_LISTDOCS, chnl);
             OpKind resp = getNonInviteOpKind();
             switch (resp) {
@@ -419,10 +488,14 @@ public class InteractionWindow extends javax.swing.JFrame {
         } catch (ChannelClosedException ex) {
             this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
         }
+        finally {
+            unlockSocket();
+        }
     }//GEN-LAST:event_listDocBtnActionPerformed
 
     private void inviteBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_inviteBtnActionPerformed
         try {
+            lockSocket();
             IOUtils.writeOpKind(OpKind.OP_INVITE, chnl);
             IOUtils.writeString(inviteUsrTb.getText(), chnl);
             IOUtils.writeString(inviteDocumentTb.getText(), chnl);
@@ -442,6 +515,9 @@ public class InteractionWindow extends javax.swing.JFrame {
         } catch (ChannelClosedException ex) {
             this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
         }
+        finally {
+            unlockSocket();
+        }
     }//GEN-LAST:event_inviteBtnActionPerformed
 
     private void showSecBtnActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_showSecBtnActionPerformed
@@ -449,6 +525,7 @@ public class InteractionWindow extends javax.swing.JFrame {
         int secnum = (Integer)editSecNumSpinner.getValue();
         if (!docname.equals("")) {
             try {
+                lockSocket();
                 IOUtils.writeOpKind(OpKind.OP_SHOWSEC, chnl);
                 IOUtils.writeString(docname, chnl);
                 IOUtils.writeInt(secnum, chnl);
@@ -482,6 +559,9 @@ public class InteractionWindow extends javax.swing.JFrame {
             } catch (ChannelClosedException ex) {
                 this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
             }
+            finally {
+                unlockSocket();
+            }
         }
         else {
             this.UserLog("Can't get a section of a document without a name", "Error", JOptionPane.ERROR_MESSAGE);
@@ -492,6 +572,7 @@ public class InteractionWindow extends javax.swing.JFrame {
         String docname = editDocNameTb.getText();
         if (!docname.equals("")) {
             try {
+                lockSocket();
                 IOUtils.writeOpKind(OpKind.OP_SHOWDOC, chnl);
                 IOUtils.writeString(docname, chnl);
                 OpKind resp = getNonInviteOpKind();
@@ -501,7 +582,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                         Path file = this.ChooseFile(true);
                         for (Integer i = 0; i < nsec; ++i) {
                             if (IOUtils.readBool(chnl)) {
-                                UserLog("This section is being edited right now");
+                                UserLog("Section " + Integer.toString(i) + " is being edited right now");
                             }
                             IOUtils.channelToFile(chnl, file.resolve(i.toString()));
                         }
@@ -527,6 +608,9 @@ public class InteractionWindow extends javax.swing.JFrame {
             } catch (ChannelClosedException ex) {
                 this.UserLog("Connection to the server lost: restart the application", "Error", JOptionPane.ERROR_MESSAGE);
             }
+            finally {
+                unlockSocket();
+            }
         }
         else {
             this.UserLog("Can't get a document without a name", "Error", JOptionPane.ERROR_MESSAGE);
@@ -543,6 +627,22 @@ public class InteractionWindow extends javax.swing.JFrame {
     }//GEN-LAST:event_sendMessageButtonActionPerformed
 
     
+    private void lockSocket() throws IOException {
+        sock_lock.lock();
+        chnl.configureBlocking(true);
+    }
+    
+    private void unlockSocket() {
+        try {
+            chnl.configureBlocking(false);
+        }
+        catch (IOException ex) {
+            UserLog("Error reconfiguring socket: it may not receive invitations", "Error", JOptionPane.ERROR_MESSAGE);
+        } finally {
+            sock_lock.unlock();
+        }
+    }
+    
     private Path ChooseFile(boolean dir) {
         JFileChooser fileChooser = new JFileChooser();
         if (dir) {
@@ -557,11 +657,15 @@ public class InteractionWindow extends javax.swing.JFrame {
         }
     }
 
+    private void handleInviteOp() throws IOException, ChannelClosedException {
+        String docInvited = IOUtils.readString((chnl));
+        UserLog("You have been invited to edit " + docInvited, "Invite", JOptionPane.INFORMATION_MESSAGE);
+    }
+    
     private OpKind getNonInviteOpKind() throws IOException, ChannelClosedException {
         OpKind resp = IOUtils.readOpKind(chnl);
         if (resp == OpKind.OP_INVITE) {
-            String docInvited = IOUtils.readString((chnl));
-            UserLog("You have been invited to edit " + docInvited, "Invite", JOptionPane.INFORMATION_MESSAGE);
+            handleInviteOp();
             return getNonInviteOpKind();
         }
         else {
@@ -640,8 +744,11 @@ public class InteractionWindow extends javax.swing.JFrame {
         java.awt.EventQueue.invokeLater(() -> {
             try {
                 new InteractionWindow().setVisible(true);
-            } catch (IOException ex) {
-                StaticLog("Error connecting to the server: " + ex.getMessage());
+            } catch (IOException e) {
+                StaticLog("Error connecting to the server: " + e.getMessage());
+                System.exit(1);
+            } catch (Exception e) {
+                StaticLog(e.getMessage());
                 System.exit(1);
             }
         });

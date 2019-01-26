@@ -107,7 +107,7 @@ public final class IOUtils {
 
 
 	/**
-	 * Get the kind of operation from a channel..
+	 * Get the kind of operation from a channel.
 	 *
 	 * @param chnl channel to read from
 	 * @return OpKind read from the chnl
@@ -116,6 +116,36 @@ public final class IOUtils {
 	 */
 	public static OpKind readOpKind(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
 		return OpKind.getOp(readByte(chnl));
+	}
+
+	/**
+	 * Get the kind of operation from a channel if it's already been
+	 * transmitted.
+	 * <p>
+	 * Assumes that the channel is in non-blocking mode, and try to read an
+	 * OpKind istantaneously. If there's nothing to read, return an empty
+	 * optional.
+	 *
+	 * @param chnl channel to read from
+	 * @return the Optional OpKind read from the chnl, or empty if it wasn't
+	 *         available
+	 * @throws ChannelClosedException if the read-end of the channel has been
+	 *                                closed
+	 */
+	public static Optional<OpKind> tryReadOpKind(ReadableByteChannel chnl) throws IOException, ChannelClosedException {
+		ByteBuffer buff = ByteBuffer.allocate(1);
+		buff.clear();
+		long read = chnl.read(buff);
+		if (read == -1) {
+			throw new ChannelClosedException();
+		}
+		else if (read == 0) {
+			return Optional.empty();
+		}
+		else {
+			buff.flip();
+			return Optional.of(OpKind.getOp(buff.get()));
+		}
 	}
 
 	/**
