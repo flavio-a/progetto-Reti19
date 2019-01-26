@@ -157,6 +157,11 @@ Il contatore dell'ultimo indirizzo usato e la mappa documento -> chatInfo
 viene mantenuta da DBInterface in memoria (tutte le chat sono perse se il
 server crasha).
 
+Nei client è presente un thread che ascolta sul socket UDP della chat,
+notificando alla GUI l'arrivo di nuovi messaggi. Data la natura di UDP, i
+messaggi inviati sulla chat hanno una lunghezza massima (specificata tra le
+costanti), un messaggio che superi quella lunghezza viene troncato.
+
 # TODO
 Primo tick fatto, secondo tick testato
 - [x] Operazioni sul db:

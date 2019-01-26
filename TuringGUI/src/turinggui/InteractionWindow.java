@@ -9,6 +9,7 @@ import java.io.*;
 import java.net.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.*;
 import java.nio.file.*;
 import javax.swing.*;
 import server.lib.*;
@@ -17,10 +18,16 @@ import server.lib.*;
  *
  * @author flavio
  */
-public class InteractionWindow extends javax.swing.JFrame {    
+public class InteractionWindow extends javax.swing.JFrame {
+    public static final Charset encoding = StandardCharsets.UTF_8;
+    
     private final SocketChannel chnl;
     private final String usr;
-
+    private final DatagramSocket chat_sock;
+    private ChatListener chat_listener;
+    private InetAddress chat_addr;
+    private boolean chat_active;
+    
     /**
      * Creates new form InteractionWindow
      * @throws java.io.IOException if an I/O exception occurs while connecting 
@@ -28,6 +35,9 @@ public class InteractionWindow extends javax.swing.JFrame {
      */
     public InteractionWindow() throws IOException {
         initComponents();
+        chat_active = false;
+        chat_addr = null;
+        chat_sock = new DatagramSocket();
         SocketAddress addr = new InetSocketAddress("127.0.0.1", 55000);
         chnl = SocketChannel.open();
         chnl.connect(addr);
@@ -85,6 +95,11 @@ public class InteractionWindow extends javax.swing.JFrame {
         jScrollPane1.setViewportView(readMessagesTextarea);
 
         sendMessageButton.setText("Send");
+        sendMessageButton.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                sendMessageButtonActionPerformed(evt);
+            }
+        });
 
         javax.swing.GroupLayout chatPanelLayout = new javax.swing.GroupLayout(chatPanel);
         chatPanel.setLayout(chatPanelLayout);
@@ -221,10 +236,11 @@ public class InteractionWindow extends javax.swing.JFrame {
                         .addComponent(editBtn))
                     .addComponent(editSecNumSpinner, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(18, 18, 18)
-                .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
-                    .addComponent(endEditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
-                    .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(editingTb))
+                .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addComponent(editingTb, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                        .addComponent(endEditBtn, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jLabel3, javax.swing.GroupLayout.PREFERRED_SIZE, 19, javax.swing.GroupLayout.PREFERRED_SIZE)))
                 .addGap(18, 18, 18)
                 .addGroup(docsInteractionPanelLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
                     .addComponent(showSecBtn)
@@ -324,6 +340,8 @@ public class InteractionWindow extends javax.swing.JFrame {
                         Path file = this.ChooseFile();
                         IOUtils.channelToFile(chnl, file);
                         editingTb.setText(docname + "#" + Integer.toString(secnum));
+                        byte chat_byte = IOUtils.readByte(chnl);
+                        activateChat(chat_byte);
                         this.UserLog("Section saved to " + file.toString());
                         break;
                     case ERR_NO_DOCUMENT:
@@ -356,6 +374,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                     Path file = this.ChooseFile();
                     editingTb.setText("");
                     IOUtils.fileToChannel(file, chnl);
+                    deactivateChat();
                     this.UserLog("Edit finished sucessfully");
                     break;
                 case ERR_USER_FREE:
@@ -513,6 +532,15 @@ public class InteractionWindow extends javax.swing.JFrame {
         }
     }//GEN-LAST:event_showDocBtnActionPerformed
 
+    private void sendMessageButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_sendMessageButtonActionPerformed
+        try {
+            sendChatMsg(writeMessageTextbox.getText());           
+        }
+        catch (IOException e) {
+            UserLog("Error sending message to the chat", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }//GEN-LAST:event_sendMessageButtonActionPerformed
+
     
     private Path ChooseFile() {
         JFileChooser fileChooser = new JFileChooser();
@@ -535,6 +563,30 @@ public class InteractionWindow extends javax.swing.JFrame {
         else {
             return resp;
         }
+    }
+    
+    private void activateChat(byte last_byte) throws IOException {
+        chat_active = true;
+        byte[] ip_addr = new byte[4];
+        System.arraycopy(Constants.multicast_base_addr, 0, ip_addr, 0, 3);
+        ip_addr[3] = last_byte;
+        chat_addr = InetAddress.getByAddress(ip_addr);
+        chat_listener = new ChatListener(chat_addr, readMessagesTextarea);
+        chat_listener.execute();
+    }
+    
+    private void sendChatMsg(String msg) throws IOException {
+        if (chat_active) {
+            byte[] buff = (usr + ": " + msg).getBytes(encoding);
+            DatagramPacket pk = new DatagramPacket(buff, buff.length, chat_addr, Constants.multicast_port);
+            chat_sock.send(pk);
+        }
+    }
+    
+    private void deactivateChat() {
+        chat_listener.cancel(true);
+        chat_active = false;
+        chat_addr = null;
     }
     
     private void UserLog(String s) {
