@@ -1,0 +1,243 @@
+\documentclass[a4paper]{article}
+
+\makeatletter
+\title{Relazione progetto reti}\let\Title\@title
+\author{Flavio Ascari}\let\Author\@author
+\date{\today}\let\Date\@date
+
+\usepackage[italian]{babel}
+\usepackage[utf8]{inputenc}
+
+\usepackage{mathtools}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{faktor}
+\usepackage{wasysym}
+
+\usepackage[margin=1.5cm]{geometry}
+\usepackage{fancyhdr}
+\usepackage{subfig}
+\usepackage{multirow}
+
+\usepackage{lipsum}
+\usepackage{titlesec}
+\usepackage{setspace}
+\usepackage{mdframed}
+\usepackage{aliascnt}
+
+\usepackage{listings}
+
+% Frontespizio e piè di pagina
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\textsf{\Author}}
+\chead{\textbf{\textsf{\Title}}}
+\lhead{\textsf{\today}}
+
+% Per avere le sezioni con le lettere
+%\renewcommand{\thesection}{\Alph{section}}
+
+% indentazione
+\setlength{\parindent}{0pt}
+
+% Per l'indice con i link
+\usepackage{hyperref}
+\hypersetup{linktocpage}
+
+
+% Formato teoremi, dimostrazioni, definizioni, ... con il ref giusto
+\theoremstyle{theorem}
+	\newtheorem{theorem}{Teorema}[section]
+\theoremstyle{remark}
+	\newaliascnt{remark}{theorem}
+	\newtheorem{remark}[remark]{Osservazione}
+	\aliascntresetthe{remark}
+	\providecommand*{\remarkautorefname}{Osservazione}
+\theoremstyle{definition}
+	\newaliascnt{definition}{theorem}
+	\newtheorem{definition}[definition]{Definizione}
+	\aliascntresetthe{definition}
+	\providecommand*{\definitionautorefname}{Definizione}
+\theoremstyle{corollary}
+	\newaliascnt{corollary}{theorem}
+	\newtheorem{corollary}[corollary]{Corollario}
+	\aliascntresetthe{corollary}
+	\providecommand*{\corollaryautorefname}{Corollario}
+\theoremstyle{lemma}
+	\newaliascnt{lemma}{theorem}
+	\newtheorem{lemma}[lemma]{Lemma}
+	\aliascntresetthe{lemma}
+	\providecommand*{\lemmaautorefname}{Lemma}
+
+\newcommand\file[1]{%
+	\textbf{#1}}
+
+\newcommand\codeName[1]{%
+	\textit{#1}}
+
+\begin{document}
+
+\begin{center}
+	\vspace*{0,5 cm}
+	{\Huge \textsc{\Title}} \\
+	\vspace{0,5 cm}
+	\textsc{\Author} \
+	\textsc{\Date}
+	\thispagestyle{empty}
+	\vspace{0,7 cm}
+\end{center}
+\small
+
+\tableofcontents
+\clearpage
+
+
+\section{Architettura del progetto}
+\subsection{Server}
+\subsubsection{Struttura generale}
+Il server utilizza sia multithreading che multiplexing per gestire più client contemporaneamente. Il thread principale del server, il \textbf{listener}, resta in attesa su un \textit{ServerSocketChannel} e su tutti i \textit{SocketChannel} aperti con i client che non stanno interagendo con il server in quel momento (ma che comunque sono connessi) tramite multiplexing. Se il \textit{ServerSocketChannel} diventa disponibile per una \textit{accept} il \textbf{listener} apre la nuova connessione con il client e crea un task per la gestione dell'operazione. Allo stesso modo, se uno dei \textit{SocketChannel} diventa disponibile per una \textit{read} il \textbf{listener} crea un task per gestire l'operazione richiesta dal client; in questo caso il \textit{SocketChannel} viene anche rimosso dal \textit{Selector}.
+
+I task vengono sottomessi ad una threadpool che contiene i thread secondari. I task, chiamati \textit{OperationHandler}, si occupano di gestire una singola operazione richiesta dal client. Una volta fatto questo decidono se chiudere la connessione o inserire il \textit{SocketChannel} nella coda condivisa (per restituirlo al \textbf{listener}) e interrompere la \textit{select} del \textbf{listener}. Una volta interrotto il \textbf{listener} svuota la coda reinserendo i \textit{SocketChannel} nel \textit{Selector}. Il server non utilizza altri thread oltre al \textbf{listener} e a quelli della \textit{threadpool}.
+
+I dati vengono salvati in parte in memoria, in parte nel filesystem. Per scegliere quale dei due si considera se in caso di crash del server questi dati debbano essere mantenuti o possano essere persi. Il server tiene tutti i file all'interno di una cartella, la \textbf{radice del database}, al cui interno si trova un cartella per ogni utente. Questa cartella ha lo stesso nome dell'utente e contiene
+\begin{itemize}
+	\item \textbf{pwd}: file con una sola riga di testo che è la password dell'utente senza spazi prima o dopo.
+	\item \textbf{pending\_invitations}: file con l'elenco degli inviti pendenti (ie: da notificare), uno per riga, nel formato \textbf{owner/document\_name}.
+	\item \textbf{editable\_docs}: fil con l'elenco dei documenti che l'utente può modificare, uno per riga, nel formato \textbf{owner/document\_name}.
+		\item una cartella per ogni suo documento, con lo stesso nome del documento, che contiene:
+		\begin{itemize}
+			\item \textbf{editors}: file con l'elenco di chi ha i permessi di modificare questo documento, uno per riga.
+			\item \textbf{sectionN}: file con il contenuto dell'N-esima sezione, un file per ogni sezione.
+		\end{itemize}
+\end{itemize}
+
+Tutte le altre informazioni vengono mantenute in memoria, in particolare tutte le informazioni sullo stato di connessione di utenti e client, sullo stato delle modifiche e sullo stato delle chat. Per ulteriori dettagli si veda la \autoref{server-data-structures}.
+
+\subsubsection{Motivo delle scelte}
+L'architettura è stata scelta perché la risposta a quasi tutte le operazioni richiede un'interazione con il filesystem, quindi eseguirle direttamente nel \textbf{listener} lo avrebbe rallentato inutilmente. Viceversa, utilizzare un thread per ogni client avrebbe causato un overhead inutile dato che i tempi di comunicazione sulla rete permettono ad un singolo thread numerose interazioni con il filesystem. L'architettura è stata presa dal progetto di Sistemi Operativi.
+
+\subsubsection{Strutture dati}\label{server-data-structures}
+Il server utilizza alcune strutture dati.
+
+La coda \textbf{freesc} (della classe \textit{TURINGServer}) per ricevere i \textit{SocketChannel} dagli \textit{OperationHandler} quando questi finiscono gestire un'operazione di un client. È una \textit{LinkedBlockingQueue}, quindi è perfettamente concorrente.
+
+Due mappe \textbf{socket\_to\_user} e \textbf{user\_to\_socket} (della classe \textit{TURINGServer}) per poter passare da un \textit{SocketChannel} all'utente che è connesso su di esso e viceversa. Sono entrambe \textbf{ConcurrentHashMap} quindi perfettamente concorrenti. Non c'è necessità di sincronizzarle insieme dato che nessun punto del codice assume che le due mappe siano una l'inversa dell'altra (ie: se il \textit{SocketChannel} \textbf{a} viene mappato nell'utente \textbf{u} allora si deve anche avere che \textbf{u} viene mappato in \textbf{a}).
+
+Due mappe \textbf{isEditing} e \textbf{beingEdited} (della classe \textit{DBInterface}) per poter passare da un utente alla sezione che sta modificando e viceversa. In realtà non serve mai sapere chi sta editando una sezione, ma solo se sta venendo editata, quindi \textbf{beingEdited} è una mappa dalle sezioni nei booleani. Queste due mappe utilizzano implementazioni non sincronizzate e vengono infatti sincronizzate esplicitamente con una lock apposta (vedere la \autoref{server-synchronization}).
+
+La mappa \textbf{doc\_to\_chat} e l'intero \textbf{new\_chat\_add} per gestire le chat. La mappa serve per ottenere l'oggetto con le informazioni sulla chat legata ad un certo documento. Il numero indica l'ultimo byte dell'indirizzo della prossima chat da creare. Il server assegna gli IP incrementalmente, tornando a 0 quando arriva a 255. Si suppone che nel tempo in cui iniziano le modifiche di 255 documenti tutti i client abbiano terminato la loro modifica, quindi non c'è controllo che un indirizzo sia già in uso. L'indirizzo viene scollegato dal documento l'ultimo client termina l'edit di una sua sezione; da quel momento un nuovo client che modifichi il documento riceverà un nuovo indirizzo.
+
+\subsubsection{Sincronizzazione}\label{server-synchronization}
+Molte operazioni del server vanno sincronizzate.
+
+La maggior parte delle operazioni della classe \textit{DBInterface} sono sincronizzate (nella documentazione di ogni funzione è indicato), ma la sincronizzazione avviene a due livelli: la lock \textit{editlock} sincronizza le operazioni in memoria (quindi sulle strutture dati descritte nella \autoref{server-data-structures}); la lock \textit{fslock} invece serve per garantire che non avvengano modifiche concorrenti sugli stessi file. Le modifiche ai file delle sezioni non sono sincronizzate esplicitamente dato che possono essere modificate da un solo utente alla volta. Il server si assicura che l'unico thread a modificare quei file sia quello che sta gestendo un'operazione richiesta dall'utente che sta modificando la sezione.
+
+Anche le operazioni sui \textit{SocketChannel} vanno sincronizzate. Il motivo è che oltre alla normale comunicazione client-server dovuta ad una richiesta del client, il server può mandare a quello stesso client un invito. La soluzione adottata è quindi quella di rendere "atomica" un'operazione, nel senso che a partire dall'inivio di un'\textbf{OpKind} (primo messaggio di ogni comunicazione, vedere la \autoref{comunication-tcp}) fino all'invio dell'ultimo messaggio causato da essa il \textit{SocketChannel} viene sincronizzato con una lock per evitare che due comunicazioni si inframezzino. In questo modo il protocollo può avvenire assumendo che client e server inviino esattamente i messaggi che l'altro estremo si aspetta. Per farlo il server utilizza non \textit{SocketChannel} direttamente ma \textit{ConcurrentSocketChannel}, che incapsulano un \textit{SocketChannel} e una lock associata ad esso.
+
+\subsection{Client}
+\subsubsection{Struttura generale}
+Il client è una GUI realizzata con Java Swing, che quindi attiva almeno l'Event Dispatch Thread (\textbf{EDT}) per gestire gli eventi, più eventualmente altri gestiti completamente dal framework e che quindi non verranno discussi in questa relazione.
+
+Alla creazione, il client avvia un JDialog per eseguire un'eventuale registrazione e i login. Avvenuto il login si avvia la finestra principale e l'EDT. Questo avvia subitol'\textbf{invitations\_listener}, un thread dedicato ad ascoltare sul \textit{SocketChannel} eventuali inviti inviati dal server. Oltre a questi due thread viene avviato anche un \textbf{ChatListener} ogni volta che il client è connesso ad una chat per ascoltare eventuali messaggi in arrivo sul canale multicast UDP e notificarli all'\textbf{EDT}. Tutti i thread secondari sono attivati come \textit{SwingWorker}, classe definita da Swing per interagire con l'\textbf{EDT}.
+
+
+Data la natura di UDP, i messaggi inviati sulla chat hanno una lunghezza massima (specificata tra le costanti), un messaggio che superi quella lunghezza viene troncato.
+
+\subsubsection{Strutture dati e sincronizzazione}
+Data la natura molto più semplice del client, questo non ha strutture dati complesse. Mantiene solo informazioni sul proprio stato (utente con cui è loggato, connessione o meno ad una chat, etc...). Ha anche una lock per sincronizzare le operazioni sul \textit{SocketChannel} allo stesso modo del server, con la differenza che ha un unico canale da sincronizzare e quindi un'unica lock (vedere la \autoref{server-synchronization}).
+
+
+\subsection{Protocolli di comunicazione}\label{comunication-protocols}
+Client e server comunicano come richiesto dalla consegna. La registrazione avviene tramite RMI, mentre le altre comunicazioni sono spiegate nelle relative sezioni.
+
+\subsubsection{Operazioni TCP}\label{comunication-tcp}
+Le comunicazioni TCP hanno tutte la stessa struttura. In ogni comunicazione un'estremo avvia la comunicazione inizia con un singolo byte che rappresenta un \textit{OpKind} (enum definito nel progetto) e indica il tipo di operazione richiesto all'altro estremo. Seguono sempre da parte del richiedente i parametri della richiesta: i tipi di dato primitivi (\textit{byte}, \textit{int}) sono inviati interamente (rispettivamente 1 e 4 bytes); i \textit{boolean} sono inviati come byte con valore 1 se veri e 0 se falsi; le stringhe invece sono inviate come un \textit{int} (4 bytes) che ne indica la lunghezza in bytes, seguito poi da quel numero di bytes (quelli della stringa vera e propria).
+
+Se è il client ad inviare una richiesta al server questo risponderà sempre con un'\textit{OpKind}: se è avvenuto un errore sarà il codice dell'errore, altrimenti sarà il valore \textit{RESP\_OK}, eventualmente seguito dai valori della risposta. Se invece è il server ad iniziare la comunicazione non si aspetterà nessun tipo di risposta dal client.
+
+Segue un elenco delle possibili richieste che il client invia al server, con i rispettivi parametri e possibili risposte di errore. Tutte le richieste ricevono come risposta \textit{RESP\_OK} in caso di successo e possono ricevere \textit{ERR\_RETRY} come codice d'errore.
+\begin{itemize}
+	\item \textit{OP\_LOGIN}(string, string) i parametri sono (nell'ordine) username e password. Un login viene associato ad un SocketChannel; tutte le richieste su quel socket vengono eseguite con il login. Un'operazione di login su un socket già connesso fallisce. Può rispondere \textit{ERR\_UNLOGGED}, \textit{ERR\_INVALID\_LOGIN}, \textit{ERR\_USERNAME\_BUSY}, \textit{ERR\_ALREADY\_LOGGED}.
+	\item \textit{OP\_CREATE}(string, int) i parametri sono il nome del documento e il numero di sezioni. Può rispondere \textit{ERR\_DOCUMENT\_EXISTS}.
+	\item \textit{OP\_EDIT}(string, int) i parametri sono il nome completo del documento (ie: owner/name) e il numero della sessione. Può rispondere \textit{ERR\_WRONG\_DOCNAME}, \textit{ERR\_NO\_DOCUMENT}, \textit{ERR\_PERMISSION}, \textit{ERR\_NO\_SECTION}, \textit{ERR\_SECTION\_BUSY}, \textit{ERR\_USER\_BUSY}. In caso di successo, dopo \textit{RESP\_OK} invia il file della sezione, seguito dall'ultimo byte dell'indirizzo IP.
+	\item \textit{OP\_ENDEDIT} non deve comunicare niente perché l'utente e l'edit corrente sono già noti al server. Può rispondere \textit{ERR\_USER\_FREE}. In caso di successo, dopo \textit{RESP\_OK} il server si aspetta di ricevere il file modificato dal client.
+	\item \textit{OP\_SHOWSEC}(string, int) i parametri sono il nome completo del documento e il numero della sessione. Può rispondere \textit{ERR\_WRONG\_DOCNAME}, \textit{ERR\_NO\_DOCUMENT}, \textit{ERR\_NO\_SECTION}. In caso di successo, dopo \textit{RESP\_OK} invia un booleano che indica se la sezione sta venendo modificata, poi il file della sezione.
+	\item \textit{OP\_SHOWDOC}(string) il parametro è il nome completo del documento. Può rispondere \textit{ERR\_NO\_DOCUMENT}. In caso di successo, dopo \textit{RESP\_OK} invia il numero di sezioni (un intero) e poi per ogni sezione invia in ordine un booleano (se sta venendo editata) e il file.
+	\item \textit{OP\_INVITE}(string, string) i parametri sono il nome dell'utente da invitare e il nome del (proprio) documento a cui invitarlo. Può rispondere \textit{ERR\_NO\_DOCUMENT}. Se l'utente invitato non esiste o ha già il permesso di modificare il documento l'operazione ha comunque successo anche se non fa nulla.
+	\item \textit{OP\_LISTDOCS}() senza parametri. In caso di successo, dopo \textit{RESP\_OK} invia il numero di documenti (un intero) seguito dai nomi dei singoli documenti (una stringa ognuno).
+\end{itemize}
+
+
+Le possibili risposte sono:
+\begin{itemize}
+	\item \textit{RESP\_OK} operazione eseguita con successo
+	\item \textit{ERR\_RETRY} operazione fallita, riprovare tra poco
+	\item \textit{ERR\_UNKNOWN\_OP} richiesta un'operazione sconosciuta
+	\item \textit{ERR\_UNLOGGED} richiesta un'operazione diversa da login su un socket non loggato
+	\item \textit{ERR\_INVALID\_LOGIN} credenziali errate
+	\item \textit{ERR\_USERNAME\_BUSY} username già connesso su un altro socket
+	\item \textit{ERR\_ALREADY\_LOGGED} operazione di login in un socket già connesso
+	\item \textit{ERR\_DOCUMENT\_EXISTS} documento già esistente, non si può ricreare
+	\item \textit{ERR\_WRONG\_DOCNAME} nome del documento non valido
+	\item \textit{ERR\_NO\_DOCUMENT} documento inesistente
+	\item \textit{ERR\_PERMISSION} permessi insufficienti
+	\item \textit{ERR\_NO\_SECTION} sezione inesistente
+	\item \textit{ERR\_SECTION\_BUSY} sezione editata da qualcun altro
+	\item \textit{ERR\_USER\_BUSY} utente modificante un'altra sezione
+	\item \textit{ERR\_USER\_FREE} utente senza modifiche in corso
+\end{itemize}
+
+Il primo messaggio su un \textit{SocketChannel} deve essere di \textit{OP\_LOGIN}, altrimenti il server chiude subito la connessione rispondendo con un \textit{ERR\_UNLOGGED}.
+
+Il server può inviare un solo messaggio al client, \textit{OP\_INVITE}(string) per notificargli un invito appena ricevuto. Il parametro è il nome del documento a cui è stato invitato.
+
+\subsubsection{Chat}
+La chat viene implementata tramite multicast UDP (come richiesto nelle specifiche). Il multicast avviene direttamente tra i client e non interessa il server. Il multicast avviene su un indirizzo IP assegnato dal server, che sceglie solo l'ultimo byte (i primi tre sono uguali per tutte le chat), e sempre sulla stessa porta. Il server comunica solo l'ultimo byte dell'indirizzo al client quando inizia una modifica.
+
+Nei client è presente un thread che ascolta sul socket UDP della chat, notificando alla GUI l'arrivo di nuovi messaggi. Data la natura di UDP, i messaggi inviati sulla chat hanno una lunghezza massima (specificata tra le costanti), un messaggio che superi quella lunghezza viene troncato.
+
+
+\section{Struttura del codice}
+Il codice è diviso in tre \textit{packages}:
+\begin{itemize}
+	\item \textit{server}: contiene le classi relative solo al server di TURING.
+	\item \textit{server.lib}: contiene classi di libreria condivise sia dal server che dal client.
+	\item \textit{turinggui}: contiene le classi relative solo al client di TURING. Questo package è stato generato automaticamente tramite l'IDE NetBeans, utilizzata per sviluppare il client GUI.
+\end{itemize}
+
+Di tutti i package non vengono riportare le eccezioni definite.
+
+Nel \textit{package} server si trovano le seguenti classi:
+\begin{itemize}
+	\item \textit{ChatInfo}: informazioni del server su una chat.
+	\item \textit{ConcurrentSocketChannel}: implementazione concorrente di \textit{SocketChannel} (vedere la \autoref{server-synchronization}).
+	\item \textit{DBInterface}: interfaccia per l'interazione sincronizzata con il filesystem e altri dati memorizzati dal server che non riguardano una specifica connessione.
+	\item \textit{OperationHandler}: task del server per la gestione della comunicazione per una singola operazione su un \textit{SocketChannel}.
+	\item \textit{Section}: classe immutabile per descrivere una sezione di un documento.
+	\item \textit{TURINGServer}: classe principale del server di TURING.
+\end{itemize}
+
+Nel \textit{package} server.lib si trovano le seguenti classi ed interfacce:
+\begin{itemize}
+	\item \textit{RegistrationInterface}: interfaccia per la registrazione tramite RMI.
+	\item \textit{Constants}: classe statica contenente costanti utili sia per il server che per i client.
+	\item \textit{FileLineReader}: implementazione tramite NIO di un filereader che lavora al livello di linee.
+	\item \textit{IOUtils}: classe contenente funzioni di utilità legate all'IO.
+	\item \textit{OpKind}: enum che definisce i tipi di operazione che client e server si scambiano.
+\end{itemize}
+
+Nel \textit{package} turinggui si trovano le seguenti classi:
+\begin{itemize}
+	\item \textit{InteractionWindow}: finestra principale della GUI.
+	\item \textit{LoginDialog}: dialog per il login e la registrazione.
+	\item \textit{ChatListener}: SwingWorker per ascoltare i messaggi della chat.
+\end{itemize}
+
+I dettagli sulle classi dei package \textit{server} e \textit{server.lib} si possono trovare nella documentazione generata dai commenti tramite javadoc: 
+
+\texttt{./utils.sh createdocs}
+
+\section{Manuale}
+
+
+\end{document}

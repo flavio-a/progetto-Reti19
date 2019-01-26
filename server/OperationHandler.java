@@ -276,6 +276,7 @@ public class OperationHandler implements Runnable {
 				socket_to_user.put(chnl, login_usr);
 				user_to_socket.put(login_usr, chnl);
 				IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
+				// TODO: notify pending invitations
 				return true;
 			}
 			else {

@@ -1,7 +1,7 @@
 package server;
 
 /**
- * Generic informations on a chat.
+ * Server informations on a chat.
  * <p>
  * This class holds informations on a chat state, like the last byte of the
  * address and the number of connected people.

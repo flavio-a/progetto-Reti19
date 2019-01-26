@@ -13,15 +13,12 @@ import server.*;
 import server.lib.*;
 
 /**
- * This class handles synchronized interactions with filesystem.
- *
- * synchronization matters because fs structure itself is used to store
+ * Interface to handles synchronized interactions with filesystem and other data stored by the server not related to a single connection.
+ * <p>
+ * Synchronization matters because fs structure itself is used to store
  * informations that may be accessed concurrently. This class operates only on
- * the subtree rooter at root, and consider it as the base of the storage
+ * the subtree rooted at root, and consider it as the base of the storage
  * system of the server.
- *
- * Actual implementation uses a single read-write lock for all files in the db.
- * Of course this may be enhanced.
  */
 public class DBInterface {
 	public static final String pwd_file = "pwd";
@@ -31,8 +28,8 @@ public class DBInterface {
 	public static final String section_file_prefix = "section";
 
 	private final Path root;
-	private final ReadWriteLock fs_rwlock;
-	private final ReadWriteLock edit_rwlock;
+	private final Lock fslock;
+	private final Lock editlock;
 	// Given a username, returns if they're editing
 	private final Map<String, Section> isEditing;
 	// Given a section, returns if it is being edited
@@ -56,8 +53,8 @@ public class DBInterface {
 		catch (FileAlreadyExistsException e) {
 			// Directory already exists, nothing to do
 		}
-		fs_rwlock = new ReentrantReadWriteLock();
-		edit_rwlock = new ReentrantReadWriteLock();
+		fslock = new ReentrantLock();
+		editlock = new ReentrantLock();
 		// Both are lazily filled, and begin empty (no one's editing anything)
 		isEditing = new HashMap<String, Section>();
 		beingEdited = new HashMap<Section, Boolean>();
@@ -84,9 +81,9 @@ public class DBInterface {
 	 * @return true iff the user was created (ie: didn't exist)
 	 */
 	public boolean createUser(String usr, String pwd) throws IOException {
+		Path usr_path = root.resolve(usr);
 		try {
-			fs_rwlock.writeLock().lock();
-			Path usr_path = root.resolve(usr);
+			fslock.lock();
 			Files.createDirectory(usr_path);
 			// This also creates the file
 			IOUtils.createFileContent(usr_path.resolve(pwd_file), pwd.trim());
@@ -98,7 +95,7 @@ public class DBInterface {
 			return false;
 		}
 		finally {
-			fs_rwlock.writeLock().unlock();
+			fslock.unlock();
 		}
 	}
 
@@ -120,10 +117,10 @@ public class DBInterface {
 	 * @return true iff usr exists and pwd matches
 	 */
 	public boolean checkUser(String usr, String pwd) throws IOException {
-		fs_rwlock.readLock().lock();
 		Path usr_info = root.resolve(usr).resolve(pwd_file);
+		fslock.lock();
 		if (!usr_info.toFile().exists()) {
-			fs_rwlock.readLock().unlock();
+			fslock.unlock();
 			return false;
 		}
 		try (
@@ -135,7 +132,7 @@ public class DBInterface {
 			throw e.getCause();
 		}
 		finally {
-			fs_rwlock.readLock().unlock();
+			fslock.unlock();
 		}
 	}
 
@@ -162,11 +159,11 @@ public class DBInterface {
 	 */
 	public Section userIsModifying(String usr) {
  		try {
- 			edit_rwlock.readLock().lock();
+ 			editlock.lock();
  			return isEditing.getOrDefault(usr, null);
  		}
  		finally {
- 			edit_rwlock.readLock().unlock();
+ 			editlock.unlock();
  		}
 	 }
 
@@ -193,7 +190,7 @@ public class DBInterface {
 	 */
 	public boolean createDocument(String usr, String name, int n) throws IOException {
 		try {
-			fs_rwlock.writeLock().lock();
+			fslock.lock();
 			Path usr_path = root.resolve(usr);
 			Path doc_path = usr_path.resolve(name);
 			Files.createDirectory(doc_path);
@@ -210,7 +207,7 @@ public class DBInterface {
 			return false;
 		}
 		finally {
-			fs_rwlock.writeLock().unlock();
+			fslock.unlock();
 		}
 	}
 
@@ -230,7 +227,7 @@ public class DBInterface {
 		Path doc_editors = root.resolve(owner).resolve(doc).resolve(editors_file);
 		Path usr_folder = root.resolve(usr_invited);
 		try {
-			fs_rwlock.writeLock().lock();
+			fslock.lock();
 			if (!IOUtils.searchRow(doc_editors, usr_invited, 0)) {
 				IOUtils.addRow(doc_editors, usr_invited);
 				IOUtils.addRow(usr_folder.resolve(permissions_file), owner + "/" + doc);
@@ -244,7 +241,7 @@ public class DBInterface {
 			}
 		}
 		finally {
-			fs_rwlock.writeLock().unlock();
+			fslock.unlock();
 		}
 	}
 
@@ -311,11 +308,11 @@ public class DBInterface {
 	 */
 	public boolean isBeingModified(Section sec) {
 		try {
-			edit_rwlock.readLock().lock();
+			editlock.lock();
 			return beingEdited.getOrDefault(sec, false);
 		}
 		finally {
-			edit_rwlock.readLock().unlock();
+			editlock.unlock();
 		}
 	}
 
@@ -339,7 +336,7 @@ public class DBInterface {
 		Path doc_path = root.resolve(sec.getDocumentPath());
 		Path sec_path = doc_path.resolve(sec.getSectionPath());
 		try {
-			fs_rwlock.readLock().lock();
+			fslock.lock();
 			// Check document existance
 			if (!this.documentExist(sec.getDocumentPath())) {
 				throw new NoSuchDocumentException(sec.getFullDocumentName());
@@ -354,10 +351,10 @@ public class DBInterface {
 			}
 		}
 		finally {
-			fs_rwlock.readLock().unlock();
+			fslock.unlock();
 		}
 		try {
-			edit_rwlock.writeLock().lock();
+			editlock.lock();
 			// Check section free
 			if (beingEdited.getOrDefault(sec, false)) {
 				throw new SectionBusyException(sec.getN());
@@ -381,7 +378,7 @@ public class DBInterface {
 			// modify the section file, then no need for synchronization
 		}
 		finally {
-			edit_rwlock.writeLock().unlock();
+			editlock.unlock();
 		}
 	}
 
@@ -418,11 +415,11 @@ public class DBInterface {
 		IOUtils.channelToFile(newContent, root.resolve(sec.getFullPath()));
 		// Release edit lock on the section
 		try {
-			edit_rwlock.writeLock().lock();
+			editlock.lock();
 			endcleanSectionEdit(usr, sec);
 		}
 		finally {
-			edit_rwlock.writeLock().unlock();
+			editlock.unlock();
 		}
 	}
 
@@ -438,14 +435,14 @@ public class DBInterface {
 	 */
 	public void cleanUserEdit(String usr) {
 		try {
-			edit_rwlock.writeLock().lock();
+			editlock.lock();
 			Section sec = isEditing.get(usr);
 			if (sec != null) {
 				endcleanSectionEdit(usr, sec);
 			}
 		}
 		finally {
-			edit_rwlock.writeLock().unlock();
+			editlock.unlock();
 		}
 	}
 }

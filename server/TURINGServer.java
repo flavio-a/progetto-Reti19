@@ -163,7 +163,6 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 	@Override
 	public void register(String usr, String pwd) throws RemoteException, InternalServerException, UsernameAlreadyInUseException {
 		log("Request: registration of username \"" + usr + "\"");
-		// TODO: check that usr doesn't contain '/'
 		try {
 			if (db_interface.createUser(usr, pwd)) {
 				log("User created succesfully");
