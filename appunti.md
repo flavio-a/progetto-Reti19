@@ -134,7 +134,8 @@ chiude subito la connessione rispondendo con un `ERR_UNLOGGED`.
 
 Il server può inviare un solo messaggio al client, `OP_INVITE`(string) per
 notificargli un invito appena ricevuto. Il parametro è il nome del documento a
-cui è stato invitato.
+cui è stato invitato. Una serie di queste operazioni vengono inviate anche ad
+un client appena connesso per notificargli tutti gli inviti pendenti.
 
 ### Trasferimento sezioni (file)
 Per trasferire una sezione (ie: un file) si invia un `long` (8 byte) con la
@@ -166,7 +167,6 @@ costanti), un messaggio che superi quella lunghezza viene troncato.
 Test like no tomorrow
 Write the report
 Check that at registration a user doesn't contains a / in its name.
-Notify pending invitations at login.
 
 Known bugs:
 NONE :)

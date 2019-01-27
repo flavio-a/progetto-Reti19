@@ -189,7 +189,7 @@ Le possibili risposte sono:
 
 Il primo messaggio su un \textit{SocketChannel} deve essere di \textit{OP\_LOGIN}, altrimenti il server chiude subito la connessione rispondendo con un \textit{ERR\_UNLOGGED}.
 
-Il server può inviare un solo messaggio al client, \textit{OP\_INVITE}(string) per notificargli un invito appena ricevuto. Il parametro è il nome del documento a cui è stato invitato.
+Il server può inviare un solo messaggio al client, \textit{OP\_INVITE}(string) per notificargli un invito appena ricevuto. Il parametro è il nome del documento a cui è stato invitato. Una serie di queste operazioni vengono inviate anche ad un client appena connesso per notificargli tutti gli inviti pendenti.
 
 \subsubsection{Chat}
 La chat viene implementata tramite multicast UDP (come richiesto nelle specifiche). Il multicast avviene direttamente tra i client e non interessa il server. Il multicast avviene su un indirizzo IP assegnato dal server, che sceglie solo l'ultimo byte (i primi tre sono uguali per tutte le chat), e sempre sulla stessa porta. Il server comunica solo l'ultimo byte dell'indirizzo al client quando inizia una modifica.

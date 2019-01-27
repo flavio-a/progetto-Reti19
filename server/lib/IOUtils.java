@@ -59,6 +59,28 @@ public final class IOUtils {
 		Files.write(f, (content + linesep).getBytes(encoding), CREATE_NEW, WRITE);
 	}
 
+	/**
+	 * Empties an existing file.
+	 *
+	 * @param f path to the existing file to empty
+	 */
+	public static void emptyFile(Path f) throws IOException {
+		Files.newBufferedWriter(f, TRUNCATE_EXISTING, WRITE).close();
+	}
+
+	/**
+	 * Get non-empty lines of a file.
+	 *
+	 * @param f path to the file to read
+	 * @return a collection of lines of the file.
+	 */
+	public static Collection<String> getFileRows(Path f) throws IOException {
+		FileLineReader reader = new FileLineReader(f);
+		return StreamSupport.stream(reader.spliterator(), false)
+					.filter(s -> ! "".equals(s.trim()))
+					.collect(Collectors.toList());
+	}
+
 	// =============================== CHANNELS ===============================
 	/**
 	 * Utility function to read a fixed amount of unformatted bytes from a

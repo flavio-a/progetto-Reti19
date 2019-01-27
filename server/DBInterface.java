@@ -144,10 +144,7 @@ public class DBInterface {
 	 */
 	public Collection<String> userModificableDocuments(String usr) throws IOException {
 		Path docslist = root.resolve(usr).resolve(permissions_file);
-		FileLineReader reader = new FileLineReader(docslist);
-		Collection<String> lines = new ArrayList<>();
-		reader.iterator().forEachRemaining(lines::add);
-		return lines;
+		return IOUtils.getFileRows(docslist);
 	}
 
 	/**
@@ -166,6 +163,24 @@ public class DBInterface {
  			editlock.unlock();
  		}
 	 }
+
+	/**
+	 * Get the list of pending invitations, clearing it after. Not synchronized.
+	 * <p>
+	 * Given that this function isn't synchronized it should be called only
+	 * when usr is connected in order to avoid that some thread writes to the
+	 * file of pending invitations while it is being read.
+	 *
+	 * @param usr the username
+	 * @return a collection of full document names, that are the ones usr has
+	 *         been invited since its last login
+	 */
+	public Collection<String> getPendingInvitations(String usr) throws IOException {
+		Path invitations = root.resolve(usr).resolve(invitations_file);
+		Collection<String> result = IOUtils.getFileRows(invitations);
+		IOUtils.emptyFile(invitations);
+		return result;
+	}
 
 	// ============================ DOCUMENTS ================================
 	/**

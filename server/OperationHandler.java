@@ -198,9 +198,11 @@ public class OperationHandler implements Runnable {
 		String invited_usr = IOUtils.readString(chnl);
 		String docname = IOUtils.readString(chnl);
 		if (!db_interface.documentExist(Paths.get(usr).resolve(docname))) {
+			log("Invitation to " + docname + " failed: doesn't exists");
 			lockedWriteOp(OpKind.ERR_NO_DOCUMENT);
 		}
 		else {
+			log("Invitation to " + docname + " succesful");
 			ConcurrentSocketChannel notifyChnl = user_to_socket.getOrDefault(invited_usr, null);
 			boolean invitedOnline = notifyChnl != null;
 			if (db_interface.invite(usr, docname, invited_usr, !invitedOnline) && invitedOnline) {
@@ -210,6 +212,7 @@ public class OperationHandler implements Runnable {
 					notifyChnl.lock();
 					IOUtils.writeOpKind(OpKind.OP_INVITE, notifyChnl);
 					IOUtils.writeString(usr + "/" + docname, notifyChnl);
+					log("Invitation notified");
 				}
 				finally {
 					notifyChnl.unlock();
@@ -277,6 +280,14 @@ public class OperationHandler implements Runnable {
 				user_to_socket.put(login_usr, chnl);
 				IOUtils.writeOpKind(OpKind.RESP_OK, chnl);
 				// TODO: notify pending invitations
+				Collection<String> invitations = db_interface.getPendingInvitations(login_usr);
+				// Someone else may decide to send an invitation here, thus lock
+				chnl.lock();
+				for (String invitation : invitations) {
+					IOUtils.writeOpKind(OpKind.OP_INVITE, chnl);
+					IOUtils.writeString(invitation, chnl);
+				}
+				chnl.unlock();
 				return true;
 			}
 			else {
