@@ -1,5 +1,5 @@
 ## Turing specific ignores
-TURING_db/
+TURINGdb/
 
 ## Compiled class file
 *.class

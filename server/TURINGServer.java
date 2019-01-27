@@ -19,7 +19,7 @@ import java.nio.channels.*;
 public class TURINGServer implements RegistrationInterface, Runnable {
 	// ================================ STATIC ================================
 	private static final int rmi_interaction_port = 24775;
-	private static final String default_db_path = "./TURING_db/";
+	private static final String default_db_path = "./TURINGdb/";
 
 	public static void main(String[] args) {
 		try {
@@ -253,12 +253,12 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 				log("ERROR: got NoPermissionException, but SectionBusyException expected");
 			}
 
-			try (
-				FileChannel newContent = FileChannel.open(Paths.get("server/TURINGServer.java"), StandardOpenOption.READ);
-			) {
-				db_interface.finishEditSection(usr1, db_interface.userIsModifying(usr1), newContent);
-				log("Edit finished succesfully");
-			}
+			Pipe pipe = Pipe.open();
+			IOUtils.fileToChannel(Paths.get("utils.sh"), pipe.sink());
+			pipe.sink().close();
+			db_interface.finishEditSection(usr1, db_interface.userIsModifying(usr1), pipe.source());
+			pipe.source().close();
+			log("Edit finished succesfully");
 
 			// Success
 			try {
@@ -271,10 +271,14 @@ public class TURINGServer implements RegistrationInterface, Runnable {
 			catch (NoPermissionException e) {
 				log("ERROR: got NoPermissionException");
 			}
+
+			System.exit(0);
 		}
 		catch (Exception e) {
 			log("ERROR: exception during testing:" + e.getMessage());
 			e.printStackTrace();
+
+			System.exit(1);
 		}
 	}
 }

@@ -9,7 +9,6 @@ import java.awt.event.WindowEvent;
 import server.lib.*;
 import java.io.IOException;
 import java.nio.channels.*;
-import java.net.*;
 import java.rmi.*;
 import java.rmi.registry.*;
 import javax.swing.JFrame;
@@ -22,6 +21,7 @@ public class LoginDialog extends javax.swing.JDialog {
     private RegistrationInterface registrationServer;
     private SocketChannel chnl;
     private String result;
+    private int rmi_registry_port;
 
     /**
      * Creates new form LoginDialog
@@ -30,17 +30,19 @@ public class LoginDialog extends javax.swing.JDialog {
         super();
         initComponents();
     }
-    
+
     /**
      * Creates new form LoginDialog for the specified SocketChannel
      * @param owner the Frame from which the dialog is displayed
      * @param chnl_set the channel on which try the login. The channel should
      *                 already be connected
+     * @param rmi_registry_port_set port of the RMI registry
      */
-    public LoginDialog(JFrame owner, SocketChannel chnl_set) {
+    public LoginDialog(JFrame owner, SocketChannel chnl_set, int rmi_registry_port_set) {
         super(owner, true);
         initComponents();
         chnl = chnl_set;
+        rmi_registry_port = rmi_registry_port_set;
     }
 
     /**
@@ -137,7 +139,7 @@ public class LoginDialog extends javax.swing.JDialog {
     private void registerButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_registerButtonActionPerformed
         try {
             if (registrationServer == null) {
-                Registry r = LocateRegistry.getRegistry(12345);
+                Registry r = LocateRegistry.getRegistry(rmi_registry_port);
                 registrationServer = (RegistrationInterface)r.lookup("TURING-REGISTRATION");
             }
             String usr = usernameTextfield.getText();
@@ -190,11 +192,11 @@ public class LoginDialog extends javax.swing.JDialog {
         this.setVisible(true);
         return result;
     }
-    
+
     public void UserLog(String s) {
         logLabel.setText(s);
     }
-    
+
     /**
      * @param args the command line arguments
      */
@@ -202,7 +204,7 @@ public class LoginDialog extends javax.swing.JDialog {
         /* Set the Nimbus look and feel */
         //<editor-fold defaultstate="collapsed" desc=" Look and feel setting code (optional) ">
         /* If Nimbus (introduced in Java SE 6) is not available, stay with the default look and feel.
-         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html 
+         * For details see http://download.oracle.com/javase/tutorial/uiswing/lookandfeel/plaf.html
          */
         try {
             for (javax.swing.UIManager.LookAndFeelInfo info : javax.swing.UIManager.getInstalledLookAndFeels()) {

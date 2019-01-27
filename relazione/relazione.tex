@@ -233,11 +233,30 @@ Nel \textit{package} turinggui si trovano le seguenti classi:
 	\item \textit{ChatListener}: SwingWorker per ascoltare i messaggi della chat.
 \end{itemize}
 
-I dettagli sulle classi dei package \textit{server} e \textit{server.lib} si possono trovare nella documentazione generata dai commenti tramite javadoc: 
-
-\texttt{./utils.sh createdocs}
+I dettagli sulle classi dei package \textit{server} e \textit{server.lib} si possono trovare nella documentazione generata dai commenti tramite javadoc (vedere la \autoref{manuale-server}).
 
 \section{Manuale}
+Per aiutare nell'esecuzione di vari compiti riguardanti TURING è presente lo script bash \texttt{utils.sh}.
+
+\subsection{Server}\label{manuale-server}
+Il server viene eseguito da linea di comando. Per compilarlo basta eseguire \texttt{./utils.sh compileserver}.
+
+Il file class principale è \textit{server.TURINGServer} nella cartella \textit{dist/server} con due parametri, la porta del registry RMI e la porta su cui il server accetta nuove connessioni.
+In alternativa si può usare \texttt{./utils.sh runserver} (che esegue anche la compilazione) per avviare il server, utilizzando le porte 12345 per il registry RMI e 55000 per accettare nuove connessioni.
+
+Il server utilizza la cartella \textit{TURINGdb} creata nella stessa cartella in cui viene eseguito come database. Se avviato tramite \texttt{utils.sh} questa viene creata nella stessa cartella dello script. In questo caso è possibile svuotare il database con \texttt{./utils.sh cleandb}.
+
+È possibile eseguire alcuni test sulle funzionalità offline del server con il comando \texttt{./utils.sh runtest}.
+
+Per generare la documentazione tramite javadoc è sufficiente il comando \texttt{./utils.sh createdocs}. La documentazione viene creata nella cartella \textit{docs}; il punto di accesso è il file \textit{index.html}.
+
+\subsection{Client}
+Il client è una GUI. Per compilarlo basta eseguire \texttt{./utils.sh compileclient} o utilizzare NetBeans (\url{https://netbeans.org/}) per aprire il progetto nella cartella \textit{TuringGUI} e compilare.
+
+Il file class principale è \textit{turinggui.InteractionWindow} nella cartella \textit{dist/client} con due parametri, la porta del registry RMI e la porta su cui il server accetta nuove connessioni.
+In alternativa si può usare \texttt{./utils.sh runclient} (che esegue anche la compilazione) per avviare un client, utilizzando le porte 12345 per il registry RMI e 55000 per connettersi al server.
+
+All'avvio il client prova a connettersi al server; se non ci riesce termina subito. Quindi prima di avviare un client il server deve essere già attivo.
 
 
 \end{document}

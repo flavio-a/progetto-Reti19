@@ -40,7 +40,9 @@ public class ChatListener extends SwingWorker<Void, String> {
                 publish(msg);
             }
             catch (IOException e) {
-                System.out.println("IO error while receiving time datagram");
+                if (!this.isCancelled()) {
+                    System.out.println("IO error while receiving chat datagram");
+                }
             }
         }
         return null;
