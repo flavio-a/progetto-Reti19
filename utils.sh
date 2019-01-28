@@ -34,7 +34,7 @@ case $1 in
 		$0 compileserver && java -cp dist/server server.TURINGServer $RMI_PORT $SERVER_PORT "test"
 		;;
 	runclient)
-		$0 compileclient && java -cp dist/client turinggui.InteractionWindow $RMI_PORT $SERVER_PORT
+		java -cp dist/client turinggui.InteractionWindow $RMI_PORT $SERVER_PORT
 		;;
 	cleanall)
 		$0 cleandb

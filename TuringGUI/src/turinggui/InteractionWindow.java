@@ -29,6 +29,7 @@ public class InteractionWindow extends javax.swing.JFrame {
     private ChatListener chat_listener;
     private InetAddress chat_addr;
     private boolean chat_active;
+    private Path editFile;
 
     /**
      * Creates new form InteractionWindow
@@ -50,13 +51,14 @@ public class InteractionWindow extends javax.swing.JFrame {
             throw new Exception("No username provided!");
         }
         chnl.configureBlocking(false);
-        
+
         // Set initial state
         initComponents();
         chat_active = false;
         chat_addr = null;
         chat_sock = new DatagramSocket();
         sock_lock = new ReentrantLock();
+        editFile = null;
         showUsrTextbox.setText(usr);
         // Listener for invitations
         SwingWorker<Void, Void> invitations_listener = new SwingWorker<Void, Void>() {
@@ -517,13 +519,13 @@ public class InteractionWindow extends javax.swing.JFrame {
             OpKind resp = getNonInviteOpKind();
             switch (resp) {
                 case RESP_OK:
-                Path file = this.ChooseFile(false);
+                //Path file = this.ChooseFile(false);
                 editingLbl.setText("Editing: no");
                 docNameTbx.setEnabled(true);
                 secNumSpn.setEnabled(true);
                 editBtn.setEnabled(true);
                 endEditBtn.setEnabled(false);
-                IOUtils.fileToChannel(file, chnl);
+                IOUtils.fileToChannel(editFile, chnl);
                 deactivateChat();
                 this.UserLog("Edit finished sucessfully");
                 break;
@@ -559,8 +561,9 @@ public class InteractionWindow extends javax.swing.JFrame {
                 OpKind resp = getNonInviteOpKind();
                 switch (resp) {
                     case RESP_OK:
-                    Path file = this.ChooseFile(false);
-                    IOUtils.channelToFile(chnl, file);
+                    //Path file = this.ChooseFile(false);
+                    editFile = Paths.get(docname.substring(docname.indexOf("/") + 1));
+                    IOUtils.channelToFile(chnl, editFile);
                     editingLbl.setText("Editing: yes");
                     docNameTbx.setEnabled(false);
                     secNumSpn.setEnabled(false);
@@ -568,7 +571,7 @@ public class InteractionWindow extends javax.swing.JFrame {
                     endEditBtn.setEnabled(true);
                     byte chat_byte = IOUtils.readByte(chnl);
                     activateChat(chat_byte);
-                    this.UserLog("Section saved to " + file.toString());
+                    this.UserLog("Section saved to " + editFile.toString());
                     break;
                     case ERR_NO_DOCUMENT:
                     this.UserLog("Can't edit document: doesn't exists", "Error", JOptionPane.ERROR_MESSAGE);
@@ -662,14 +665,22 @@ public class InteractionWindow extends javax.swing.JFrame {
                 switch (resp) {
                     case RESP_OK:
                     int nsec = IOUtils.readInt(chnl);
-                    Path file = this.ChooseFile(true);
+                    // Path file = this.ChooseFile(true);
+                    Path file = Paths.get(docname.substring(docname.indexOf("/") + 1) + "_doc");
+                    try {
+                        Files.deleteIfExists(file);
+                        Files.createDirectory(file);
+                    }
+                    catch (DirectoryNotEmptyException e) {
+                        // Nothing to do
+                    }
                     for (Integer i = 0; i < nsec; ++i) {
                         if (IOUtils.readBool(chnl)) {
                             UserLog("Section " + Integer.toString(i) + " is being edited right now");
                         }
                         IOUtils.channelToFile(chnl, file.resolve(i.toString()));
                     }
-                    this.UserLog("Sections saved to " + file.toString());
+                    this.UserLog("Sections saved");
                     break;
                     case ERR_WRONG_DOCNAME:
                     this.UserLog("Can't show section: wrong document name", "Error", JOptionPane.ERROR_MESSAGE);
@@ -712,12 +723,13 @@ public class InteractionWindow extends javax.swing.JFrame {
                 OpKind resp = getNonInviteOpKind();
                 switch (resp) {
                     case RESP_OK:
-                    Path file = this.ChooseFile(false);
+                    // Path file = this.ChooseFile(false);
+                    Path file = Paths.get(docname.substring(docname.indexOf("/") + 1));
                     if (IOUtils.readBool(chnl)) {
                         UserLog("This section is being edited right now");
                     }
                     IOUtils.channelToFile(chnl, file);
-                    this.UserLog("Section saved to " + file.toString());
+                    this.UserLog("Section saved");
                     break;
                     case ERR_WRONG_DOCNAME:
                     this.UserLog("Can't show section: wrong document name", "Error", JOptionPane.ERROR_MESSAGE);

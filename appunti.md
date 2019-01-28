@@ -165,7 +165,6 @@ costanti), un messaggio che superi quella lunghezza viene troncato.
 
 # TODO
 Test like no tomorrow
-Write the report
 Check that at registration a user doesn't contains a / in its name.
 
 Known bugs:
